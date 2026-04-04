@@ -52,6 +52,7 @@ public:
 	void update();
 	void render();
 	void handleKeyDown(char key);
+	bool isSolid(int x, int y)const;
 	inline float tPosX(int p)const;
 	inline float tPosY(int p)const;
 	inline int scrTile(float x, float y)const;

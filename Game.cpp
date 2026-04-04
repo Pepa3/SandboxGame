@@ -71,7 +71,7 @@ SDL_AppResult SDL_AppIterate(void* appstate){
 	Map* map = (Map*)appstate;
 
 	uint64_t t = SDL_GetTicks();
-	if(t - lastUpdateTicks >= 20){//50 tps
+	if(t - lastUpdateTicks >= 25){//40 tps
 		lastUpdateTicks=t;
 		map->update();
 	}
