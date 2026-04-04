@@ -125,6 +125,6 @@ void Map::render(){
 	SDL_SetRenderDrawColor(renderer,0,0,0,0xff);
 	SDL_RenderRect(renderer, &cursorRect);
 
-	const SDL_FRect dest = {player.x - cameraX + wWidth / 2,player.y - cameraY + wHeight / 2,tileSize,tileSize};
-	SDL_RenderTexture(renderer, tiles[Tile::UNKNOWN], &tileFRect, &dest);
+	const SDL_FRect dest = {player.x - cameraX + wWidth / 2, player.y - cameraY + wHeight / 2, tileSize, tileSize};
+	SDL_RenderTexture(renderer, tiles[Tile::PLAYER], &tileFRect, &dest);
 }

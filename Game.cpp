@@ -42,7 +42,10 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv){
 	assert(tilemap->w == tileSize * tileMapWidth && "Bad tilemap width.");
 	assert(tilemap->h == tileSize * tileMapHeight && "Bad tilemap height.");
 
+	SDL_SetSurfaceBlendMode(tilemap,SDL_BLENDMODE_NONE);
+
 	SDL_Surface* temp = SDL_CreateSurface(32,32,SDL_PIXELFORMAT_RGBA8888);
+
 	for(size_t i = 0; i < tileMapHeight; i++){
 		for(size_t j = 0; j < tileMapWidth; j++){
 			SDL_Rect srcRect = {tileSize * j,tileSize * i,tileSize,tileSize};

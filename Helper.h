@@ -31,7 +31,7 @@ const siv::PerlinNoise perlin{seed};
 */
 
 enum Tile :uint8_t{
-	UNKNOWN = 0, AIR = 1, DIRT = 2, STONE = 3, COUNT
+	UNKNOWN = 0, AIR = 1, DIRT = 2, STONE = 3, PLAYER=10
 };
 constexpr bool isSolid(Tile t){
 	switch(t){
