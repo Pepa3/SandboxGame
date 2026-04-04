@@ -4,6 +4,7 @@
 #include <SDL3/SDL_surface.h>
 #include <SDL3_ttf/SDL_ttf.h>
 #include <SDL3_image/SDL_image.h>
+#include "PerlinNoise.hpp"
 /*
 * -
 *-X+ XY: from left top to right bottom is positive 
@@ -22,6 +23,8 @@ constexpr size_t tileSize = 32;
 constexpr size_t tileMapWidth = 10, tileMapHeight = 10;
 constexpr SDL_Rect tileRect = {0,0,tileSize,tileSize};
 constexpr SDL_FRect tileFRect = {0,0,tileSize,tileSize};
+const siv::PerlinNoise::seed_type seed = 19254792u;
+const siv::PerlinNoise perlin{seed};
 
 /*
 * TYPE DEFINITIONS

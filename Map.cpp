@@ -26,19 +26,19 @@ inline int Map::scrTile(float x, float y)const{
 }
 
 bool Map::isSolid(int x, int y)const{
-	assert(x >= 0 && x < mWidth && "Bad position in Map::isSolid()!");
-	assert(y >= 0 && y < mHeight && "Bad position in Map::isSolid()!");
+	if(x < 0 || x >= mWidth || y < 0 || y >= mHeight)return true;
 	return ::isSolid(world[x + y * mWidth]);
 }
 
 void Map::generateWorld(){
-	for(size_t i = 0; i < mWidth*mHeight; i++){
-		if(i / mWidth > mHeight / 2)
-			world[i] = Tile::STONE;
-		else if(i / mWidth > mHeight / 3)
-			world[i] = Tile::DIRT;
-		else
-			world[i] = Tile::AIR;
+	for(size_t x = 0; x < mWidth; x++){
+		const double n1 = perlin.noise2D_01(x * 0.01, 1) * mHeight;
+		const double n2 = perlin.noise2D_01(x * 0.01, 2) * n1;
+		for(size_t y = 0; y < mHeight; y++){
+			if(y >= n1)world[x + y * mWidth] = Tile::STONE;
+			else if(y>=n2) world[x + y * mWidth] = Tile::DIRT;
+			else world[x + y * mWidth] = Tile::AIR;
+		}
 	}
 }
 
