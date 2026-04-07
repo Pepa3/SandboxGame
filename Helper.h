@@ -47,6 +47,8 @@ constexpr bool isSolid(Tile t){
 /*
 * CLASS DEFINITIONS
 */
+class Map;
+class Player;
 
 class Map{
 public:
@@ -57,25 +59,34 @@ public:
 	void update();
 	void render();
 	void handleKeyDown(char key);
+	void place(int i, Tile t);
 	bool isSolid(int x, int y)const;
 	inline float tPosX(int p)const;
 	inline float tPosY(int p)const;
 	inline float posX(int x)const;
 	inline float posY(int y)const;
 	inline int scrTile(float x, float y)const;
-
+	
 private:
 	Tile* world;
+	Player* player;
+};
+
+class Player{
+	friend Map;
+public:
+	Player(Map* map, float x, float y);
+	void render();
+	void update();
+private:
+	float x, y;
+	float yVel=0.f;
+	bool onGround=false;
 	struct Item{
 		Tile type;
 		size_t count;
-	};
-	struct Player{
-		float x, y;
-		float yVel;
-		bool onGround;
-		Item inventory[INVENTORY_SIZE];
-	} player;
+	} inventory[INVENTORY_SIZE] = {Tile::UNKNOWN};
+	Map* map;
 };
 
 /*

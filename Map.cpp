@@ -1,14 +1,16 @@
 #include "Helper.h"
 #include <cassert>
 
-Map::Map(size_t mW, size_t mH) :mWidth(mW), mHeight(mH), player{mW / 2.f * tileSize,tileSize*10}{
+Map::Map(size_t mW, size_t mH) :mWidth(mW), mHeight(mH){
 	world = new Tile[mW * mH];
-	cameraX = player.x;
-	cameraY = player.y;
+	player = new Player(this, mW / 2.f * tileSize, tileSize * 10);
+	cameraX = player->x;
+	cameraY = player->y;
 }
 
 Map::~Map(){
 	delete[mWidth * mHeight] world;
+	delete player;
 }
 
 inline float Map::tPosX(int p)const{
@@ -59,6 +61,10 @@ void Map::generateWorld(){
 void Map::handleKeyDown(char key){
 }
 
+void Map::place(int i, Tile t){
+	world[i] = t;
+}
+
 void Map::update(){
 	
 	for(size_t i = 0; i < mWidth*(mHeight-1); i++){//TODO: this is a bad idea
@@ -67,80 +73,17 @@ void Map::update(){
 			world[i + mWidth] = Tile::SAND;
 		}
 	}
-	
-	const bool* key_states = SDL_GetKeyboardState(NULL);
-
-	float mx, my;
-	int button = SDL_GetMouseState(&mx, &my);
-	int t = scrTile(mx, my);
-	//TODO: handle only on mouseDown events
-	if(button & SDL_BUTTON_LMASK){
-		world[t] = Tile::STONE;
-	} else if(button & SDL_BUTTON_RMASK){
-		world[t] = Tile::AIR;
-	}
-
-	int mX = player.x / tileSize;
-	int mY = player.y / tileSize;
-	//(mX >= 0 && mX < mWidth&& mY >= 0 && mY < mHeight)
-	// on ground if both blocks under player are solid unless standing exactly on tile, then not on ground
-	player.onGround = isSolid(mX, mY + 1) ||(fmodf(player.x, 32) > 0 && isSolid(mX + 1, mY + 1));
-
-	//can move if not going to be blocked and in air not blocked by both tiles
-
-	if(key_states[SDL_SCANCODE_D]){
-		if(!isSolid((player.x + PLAYER_SPEED) / tileSize + 1, player.y / tileSize)
-			&& !(!player.onGround && isSolid((player.x + PLAYER_SPEED) / tileSize + 1, player.y / tileSize + 1))
-			){
-			player.x += PLAYER_SPEED;
-		} else if(!isSolid(player.x / tileSize + 1, player.y / tileSize) //can snap?
-			&& !(!player.onGround && isSolid(player.x / tileSize + 1, player.y / tileSize + 1))
-			){
-			player.x = player.x - fmodf(player.x, 32)+32;
-		}
-	}else if(key_states[SDL_SCANCODE_A]){
-		if(!isSolid((player.x - PLAYER_SPEED) / tileSize, player.y / tileSize)
-			&& !(!player.onGround && isSolid((player.x - PLAYER_SPEED) / tileSize, player.y / tileSize + 1))
-			){
-			player.x -= PLAYER_SPEED;
-		} else{
-			player.x = player.x - fmodf(player.x, 32);
-		}
-	}
-	float distanceToTileBoundary = -fmodf(player.y, 32);
-	if(!isSolid(player.x / tileSize, (player.y + player.yVel) / tileSize)
-		&& !(fmodf(player.x, 32) > 0 && isSolid(player.x / tileSize + 1, (player.y + player.yVel) / tileSize))){
-		player.y += player.yVel;
-	}else{
-		player.yVel = distanceToTileBoundary;
-	}
-
-	mX = player.x / tileSize;
-	mY = player.y / tileSize;
-	//(mX >= 0 && mX < mWidth&& mY >= 0 && mY < mHeight)
-	player.onGround = isSolid(mX, mY + 1) || (fmodf(player.x,32) > 0 && isSolid(mX + 1, mY + 1));
-	bool mayBeOnGround = isSolid(mX, mY + 2) || (fmodf(player.x, 32) > 0 && isSolid(mX + 1, mY + 2));
-	distanceToTileBoundary = 32-fmodf(player.y,32);
-
-	if(!player.onGround){// IN AIR
-		player.yVel += GRAVITY;
-		if(mayBeOnGround && distanceToTileBoundary < player.yVel)player.yVel = distanceToTileBoundary;
-	}else{ // ON GROUND
-		player.yVel = 0;
-		if(key_states[SDL_SCANCODE_W]){
-			player.yVel = -JUMP_IMPULE;
-		}
-	}
+	player->update();
 }
 
 void Map::render(){
-	cameraX += (player.x - cameraX + tileSize / 2) / 10;
-	cameraY += (player.y - cameraY + tileSize / 2) / 10;
+	cameraX += (player->x - cameraX + tileSize / 2) / 10;
+	cameraY += (player->y - cameraY + tileSize / 2) / 10;
 
-	int beginX = fmaxf(player.x / tileSize - RENDER_RADIUS, 0);
-	int beginY = fmaxf(player.y / tileSize - RENDER_RADIUS, 0);
-	int endX = fminf(player.x / tileSize + RENDER_RADIUS, mWidth);
-	int endY = fminf(player.y / tileSize + RENDER_RADIUS, mHeight);
+	int beginX = fmaxf(player->x / tileSize - RENDER_RADIUS, 0);
+	int beginY = fmaxf(player->y / tileSize - RENDER_RADIUS, 0);
+	int endX = fminf(player->x / tileSize + RENDER_RADIUS, mWidth);
+	int endY = fminf(player->y / tileSize + RENDER_RADIUS, mHeight);
 	for(size_t x = beginX; x < endX; x++){
 		for(size_t y = beginY; y < endY; y++){
 			const SDL_FRect dest = {posX(x),posY(y),tileSize,tileSize};
@@ -154,18 +97,5 @@ void Map::render(){
 	const SDL_FRect cursorRect = {tPosX(t),tPosY(t),tileSize,tileSize};
 	SDL_SetRenderDrawColor(renderer,0,0,0,0xff);
 	SDL_RenderRect(renderer, &cursorRect);
-
-	const SDL_FRect dest = {player.x - cameraX + wWidth / 2, player.y - cameraY + wHeight / 2, tileSize, tileSize};
-	SDL_RenderTexture(renderer, tiles[Tile::PLAYER], &tileFRect, &dest);
-
-	for(size_t i = 0; i < INVENTORY_SIZE; i++){
-		const SDL_FRect itemFrameRect = {wWidth/2-(INVENTORY_SIZE/2.f-i)*tileSize*3.f,wHeight-tileSize*3,tileSize*2,tileSize*2};
-		SDL_SetRenderDrawColor(renderer, 0xaa, 0xaa, 0xee, 0xff);
-		SDL_RenderRect(renderer, &itemFrameRect);
-		if(player.inventory[i].type != Tile::UNKNOWN){
-			const SDL_FRect itemRect = {wWidth / 2 - (INVENTORY_SIZE / 2.f - i) * tileSize * 3.f + tileSize / 2,wHeight - tileSize * 3 + tileSize / 2, tileSize, tileSize};
-			SDL_RenderTexture(renderer, tiles[player.inventory[i].type], &tileFRect, &itemRect);
-		}
-	}
-
+	player->render();
 }
