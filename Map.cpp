@@ -80,10 +80,10 @@ void Map::render(){
 	cameraX += (player->x - cameraX + tileSize / 2) / 10;
 	cameraY += (player->y - cameraY + tileSize / 2) / 10;
 
-	int beginX = fmaxf(player->x / tileSize - RENDER_RADIUS, 0);
-	int beginY = fmaxf(player->y / tileSize - RENDER_RADIUS, 0);
-	int endX = fminf(player->x / tileSize + RENDER_RADIUS, mWidth);
-	int endY = fminf(player->y / tileSize + RENDER_RADIUS, mHeight);
+	int beginX = fmaxf((cameraX - wWidth / 2) / tileSize, 0);
+	int beginY = fmaxf((cameraY - wHeight / 2) / tileSize, 0);
+	int endX = fminf((cameraX + wWidth / 2) / tileSize+1, mWidth);
+	int endY = fminf((cameraY + wHeight / 2) / tileSize+1, mHeight);
 	for(size_t x = beginX; x < endX; x++){
 		for(size_t y = beginY; y < endY; y++){
 			const SDL_FRect dest = {posX(x),posY(y),tileSize,tileSize};

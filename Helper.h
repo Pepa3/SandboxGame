@@ -20,7 +20,6 @@ constexpr float PLAYER_SPEED = 7;
 constexpr float GRAVITY = 0.5;
 constexpr float JUMP_IMPULE = 8;
 constexpr size_t INVENTORY_SIZE = 5;
-constexpr size_t RENDER_RADIUS = 33;
 constexpr size_t tileSize = 32;
 constexpr size_t tileMapWidth = 10, tileMapHeight = 10;
 constexpr SDL_Rect tileRect = {0,0,tileSize,tileSize};
