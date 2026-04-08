@@ -83,8 +83,8 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv){
 	SDL_DestroySurface(temp);
 	SDL_DestroySurface(tilemap);
 
-	Map* map = new Map(200,100);
-	*appstate = map;
+	map = new Map();
+	if(!map->load("test1.save"))
 	map->generateWorld();
 
 	return SDL_APP_CONTINUE;
@@ -92,7 +92,6 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv){
 static uint64_t frames = 0, lastFPSTime = 0;
 
 SDL_AppResult SDL_AppIterate(void* appstate){
-	Map* map = (Map*)appstate;
 	frames++;
 
 	uint64_t t = SDL_GetTicks();
@@ -121,7 +120,6 @@ SDL_AppResult SDL_AppIterate(void* appstate){
 }
 
 SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event){
-	Map* map = (Map*) appstate;
 	if(event->type == SDL_EVENT_QUIT){
 		return SDL_APP_SUCCESS;
 	} else if(event->type == SDL_EVENT_KEY_DOWN){
@@ -144,6 +142,9 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event){
 }
 
 void SDL_AppQuit(void* appstate, SDL_AppResult result){
+	map->save("test1.save");
+	delete map;
+
 	TTF_Quit();
 	SDL_DestroyRenderer(renderer);
 	SDL_DestroyWindow(window);

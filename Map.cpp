@@ -1,78 +1,109 @@
 #include "Helper.h"
 #include <cassert>
+#include <iostream>
+#include <fstream>
 
-Map::Map(size_t mW, size_t mH) :mWidth(mW), mHeight(mH){
-	world = new Tile[mW * mH];
-	player = new Player(this, mW / 2.f * tileSize, tileSize * 10);
+Map::Map(){
+	chunks = std::unordered_map<uint32_t, Chunk*>();
+	player = new Player(20 * tileSize, tileSize * 10);
 	cameraX = player->x;
 	cameraY = player->y;
 }
 
 Map::~Map(){
-	delete[mWidth * mHeight] world;
+	for(auto& ch : chunks){
+		if(ch.second!=nullptr)
+		delete ch.second;
+	}
 	delete player;
 }
 
-inline float Map::tPosX(int p)const{
-	return tileSize * (p % mWidth) - cameraX + wWidth / 2.f;
-}
-inline float Map::tPosY(int p)const{
-	return tileSize * (p / mWidth) - cameraY + wHeight / 2.f;
-}
 inline float Map::posX(int x)const{
 	return tileSize * x - cameraX + wWidth / 2.f;
 }
 inline float Map::posY(int y)const{
 	return tileSize * y - cameraY + wHeight / 2.f;
 }
+int Map::tPosX(int x)const{
+	return floorf((x + cameraX - wWidth / 2.f) / tileSize);
+}
+int Map::tPosY(int y)const{
+	return floorf((y + cameraY - wHeight / 2.f) / tileSize);
+}
+#define KEY(high,low)(((uint32_t)high << 16) | ((uint32_t) low)&0xFFFF)
 
-inline int Map::scrTile(float x, float y)const{
-	int shiftedX = x + cameraX-wWidth/2.f;
-	int shiftedY = y + cameraY-wHeight/2.f;
-	if(shiftedX < 0 || shiftedY < 0)return 0;
-	return shiftedX / tileSize + shiftedY / tileSize * mWidth;
+inline Tile& Map::world(int x, int y){
+	short cx = floorf(x / (float) chSize);
+	short cy = floorf(y / (float) chSize);
+	uint32_t key = KEY(cx, cy);
+	if(!chunks.contains(key)){
+		Chunk* ch = new Chunk(cx, cy);
+		ch->generate();
+		chunks.insert({key, ch});
+	}
+	return chunks.at(key)->data[(x-cx*chSize)+(y-cy*chSize)*chSize];
 }
 
-bool Map::isSolid(int x, int y)const{
-	if(x < 0 || x >= mWidth || y < 0 || y >= mHeight)return true;
-	return ::isSolid(world[x + y * mWidth]);
+bool Map::isSolid(int x, int y){
+	return ::isSolid(world(x,y));
 }
 
 void Map::generateWorld(){
-	for(size_t x = 0; x < mWidth; x++){
-		const int n1 = perlin.noise2D_01(x * 0.01, 1) * mHeight;
-		const int n2 = perlin.noise2D_01(x * 0.01, 2) * n1;
-		for(size_t y = 0; y < mHeight; y++){
-			if(y >= n1)world[x + y * mWidth] = Tile::STONE;
-			else if(y>=n2) world[x + y * mWidth] = Tile::DIRT;
-			else world[x + y * mWidth] = Tile::AIR;
+	for(int i = -2; i <= 2; i++){
+		for(int j = -2; j <= 2; j++){
+			Chunk* ch = new Chunk(i,j);
+			ch->generate();
+			chunks.insert({KEY(i,j), ch});
 		}
 	}
-	for(size_t x = 0; x < mWidth; x++){
+}
+
+Map::Chunk::Chunk(){}
+
+Map::Chunk::Chunk(short x, short y) :x(x), y(y) {
+	std::cout << "Created chunk [" << x << "][" << y << "]" << std::endl;
+	for(size_t i = 0; i < chSize*chSize; i++){
+		data[i] = Tile::AIR;
+	}
+}
+
+void Map::Chunk::generate(){
+	constexpr int dirtHeight = 5;
+	int gx = x * chSize;
+	int gy = y * chSize;
+	for(int i = 0; i < chSize; i++){
+		const int n1 = perlin.noise2D((gx+i) * 0.01, 1) * TERRAIN_STEEPNESS+100;
+		for(int j = 0; j < chSize; j++){
+			if(j+gy<n1)data[i + j * chSize] = Tile::AIR;
+			else if(j+gy<n1+dirtHeight)data[i + j * chSize] = Tile::DIRT;
+			else data[i + j * chSize] = Tile::STONE;
+		}
+	}
+	//TODO: generate proper trees
+	/*for(size_t x = 0; x < mWidth; x++){
 		if(rand() % 100 > 10)continue;
 		const int n1 = perlin.noise2D_01(x * 0.01, 1) * mHeight;
 		const int n2 = perlin.noise2D_01(x * 0.01, 2) * n1;
 		for(size_t y = 0; y < rand()%12; y++){
 			world[x + n2 * mWidth-y*mWidth] = Tile::WOOD;
 		}
-	}
+	}*/
 }
 
 void Map::handleKeyDown(char key){
 }
 
-void Map::place(int i, Tile t){
-	world[i] = t;
+void Map::place(int x, int y, Tile t){
+	world(x,y) = t;
 }
 
 void Map::update(){
-	
-	for(size_t i = 0; i < mWidth*(mHeight-1); i++){//TODO: this is a bad idea
+	/*for(size_t i = 0; i < mWidth * (mHeight - 1); i++){//TODO: this is a bad idea
 		if(world[i] == Tile::SAND && world[i + mWidth] == Tile::AIR){
 			world[i] = Tile::AIR;
 			world[i + mWidth] = Tile::SAND;
 		}
-	}
+	}*/
 	player->update();
 }
 
@@ -80,22 +111,78 @@ void Map::render(){
 	cameraX += (player->x - cameraX + tileSize / 2) / 10;
 	cameraY += (player->y - cameraY + tileSize / 2) / 10;
 
-	int beginX = fmaxf((cameraX - wWidth / 2) / tileSize, 0);
-	int beginY = fmaxf((cameraY - wHeight / 2) / tileSize, 0);
-	int endX = fminf((cameraX + wWidth / 2) / tileSize+1, mWidth);
-	int endY = fminf((cameraY + wHeight / 2) / tileSize+1, mHeight);
-	for(size_t x = beginX; x < endX; x++){
-		for(size_t y = beginY; y < endY; y++){
+	int beginX = (cameraX - wWidth / 2) / tileSize-1;
+	int beginY = (cameraY - wHeight / 2) / tileSize-1;
+	int endX = (cameraX + wWidth / 2) / tileSize+1;
+	int endY = (cameraY + wHeight / 2) / tileSize+1;
+	for(int x = beginX; x < endX; x++){
+		for(int y = beginY; y < endY; y++){
 			const SDL_FRect dest = {posX(x),posY(y),tileSize,tileSize};
-			SDL_RenderTexture(renderer, tiles[world[x + y * mWidth]], &tileFRect, &dest);
+			SDL_RenderTexture(renderer, tiles[world(x, y)], &tileFRect, &dest);//TODO: SLOW -> looks up chunks every iteration
 		}
 	}
 	float mx, my;
 	SDL_GetMouseState(&mx, &my);
-	int t = scrTile(mx, my);
+	int tx = tPosX(mx);
+	int ty = tPosY(my);
 
-	const SDL_FRect cursorRect = {tPosX(t),tPosY(t),tileSize,tileSize};
+	const SDL_FRect cursorRect = {posX(tx), posY(ty),tileSize,tileSize};
 	SDL_SetRenderDrawColor(renderer,0,0,0,0xff);
 	SDL_RenderRect(renderer, &cursorRect);
 	player->render();
+}
+
+template<typename T>
+void write(std::ofstream& out, T* t){
+	out.write((char*) t, sizeof(T));
+}
+template<typename T>
+void read(std::ifstream& in, T* t){
+	in.read((char*) t, sizeof(T));
+}
+
+bool Map::save(const std::string& file)const{
+	std::ofstream out = std::ofstream(file, std::ios::binary);
+	if(!out.is_open()||out.bad()){
+		std::cerr << "Map::save failed to open "<< file << std::endl;
+		return false;
+	}
+	write(out, player);
+	uint32_t count = chunks.size();
+	write(out, &chSize);
+	write(out, &count);
+	for(const auto& ch : chunks){
+		write(out, ch.second);
+	}
+	out.close();
+	std::cout << "Saved to " << file << std::endl;
+	return true;
+}
+
+bool Map::load(const std::string& file){
+	std::ifstream in = std::ifstream(file, std::ios::binary);
+	if(!in.is_open() || in.bad()){
+		std::cerr << "Map::load failed to open " << file << std::endl;
+		return false;
+	}
+	read(in, player);
+	cameraX = player->x;
+	cameraY = player->y;
+	int tmpChSize;
+	uint32_t tmpCount;
+	read(in, &tmpChSize);
+	if(tmpChSize != chSize){
+		std::cerr << "Map::load failed: bad chunk size in file "<< file << std::endl;
+		in.close();
+		return false;
+	}
+	read(in, &tmpCount);
+	for(size_t i = 0; i < tmpCount; i++){
+		Chunk* ch = new Chunk();
+		read(in, ch);
+		chunks[KEY(ch->x, ch->y)] = ch;
+	}
+	in.close();
+	std::cout << "Loaded from " << file << std::endl;
+	return true;
 }

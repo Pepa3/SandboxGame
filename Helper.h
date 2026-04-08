@@ -5,6 +5,8 @@
 #include <SDL3_ttf/SDL_ttf.h>
 #include <SDL3_image/SDL_image.h>
 #include "PerlinNoise.hpp"
+#include <unordered_map>
+
 /*
 * -
 *-X+ XY: from left top to right bottom is positive 
@@ -20,8 +22,10 @@ constexpr float PLAYER_SPEED = 7;
 constexpr float GRAVITY = 0.5;
 constexpr float JUMP_IMPULE = 8;
 constexpr size_t INVENTORY_SIZE = 5;
-constexpr size_t tileSize = 32;
+constexpr int tileSize = 32;
 constexpr size_t tileMapWidth = 10, tileMapHeight = 10;
+constexpr int chSize = 50;
+constexpr size_t TERRAIN_STEEPNESS = 100;
 constexpr SDL_Rect tileRect = {0,0,tileSize,tileSize};
 constexpr SDL_FRect tileFRect = {0,0,tileSize,tileSize};
 const siv::PerlinNoise::seed_type seed = 19254792u;
@@ -51,32 +55,43 @@ class Player;
 
 class Map{
 public:
-	const size_t mWidth, mHeight;
-	Map(size_t mW, size_t mH);
+	Map();
 	~Map();
 	void generateWorld();
 	void update();
 	void render();
+	bool save(const std::string &file)const;
+	bool load(const std::string& file);
 	void handleKeyDown(char key);
-	void place(int i, Tile t);
-	bool isSolid(int x, int y)const;
-	inline float tPosX(int p)const;
-	inline float tPosY(int p)const;
+	void place(int x, int y, Tile t);
+	bool isSolid(int x, int y);
+	int tPosX(int x)const;
+	int tPosY(int y)const;
 	inline float posX(int x)const;
 	inline float posY(int y)const;
-	inline int scrTile(float x, float y)const;
+	inline Tile& world(int x, int y);
+	class Chunk{
+	public:
+		Chunk(short x, short y);
+		Chunk();
+		void generate();
+		short x, y;
+		Tile data[chSize * chSize];
+	};
 	
 private:
-	Tile* world;
+	std::unordered_map<uint32_t, Chunk*> chunks;
 	Player* player;
 };
 
 class Player{
 	friend Map;
 public:
-	Player(Map* map, float x, float y);
+	Player(float x, float y);
 	void render();
 	void update();
+	//void save(std::ofstream& out)const;
+	//void load(std::ifstream& in);
 private:
 	float x, y;
 	float yVel=0.f;
@@ -85,7 +100,6 @@ private:
 		Tile type;
 		size_t count;
 	} inventory[INVENTORY_SIZE] = {Tile::UNKNOWN};
-	Map* map;
 };
 
 /*
@@ -104,6 +118,7 @@ GLOBAL(SDL_Texture* tiles[0xff])\
 GLOBAL(float cameraX)\
 GLOBAL(float cameraY)\
 GLOBAL(uint64_t lastUpdateTicks)\
+GLOBAL(Map* map)\
 
 #ifdef HELPER_INIT
 # define GLOBAL(what) what;
