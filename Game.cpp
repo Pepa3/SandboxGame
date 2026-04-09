@@ -66,8 +66,8 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv){
 
 	SDL_Surface* temp = SDL_CreateSurface(32,32,SDL_PIXELFORMAT_RGBA8888);
 
-	for(size_t i = 0; i < tileMapHeight; i++){
-		for(size_t j = 0; j < tileMapWidth; j++){
+	for(int i = 0; i < tileMapHeight; i++){
+		for(int j = 0; j < tileMapWidth; j++){
 			SDL_Rect srcRect = {tileSize * j,tileSize * i,tileSize,tileSize};
 			if(!SDL_BlitSurface(tilemap, &srcRect, temp, &tileRect)){
 				SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Couldn't process the tilemap: %s\n", SDL_GetError());
@@ -84,7 +84,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv){
 	SDL_DestroySurface(tilemap);
 
 	map = new Map();
-	if(!map->load("test1.save"))
+	//if(!map->load("test1.save"))
 	map->generateWorld();
 
 	return SDL_APP_CONTINUE;

@@ -1,6 +1,6 @@
 #include "Helper.h"
 
-int SDL_RenderCircle(SDL_Renderer* renderer, int x, int y, int radius){
+int SDL_RenderCircle(SDL_Renderer* renderer, float x, float y, int radius){
     int offsetx, offsety, d;
     int status;
 
@@ -40,7 +40,7 @@ int SDL_RenderCircle(SDL_Renderer* renderer, int x, int y, int radius){
     return status;
 }
 
-int SDL_RenderFillCircle(SDL_Renderer* renderer, int x, int y, int radius){
+int SDL_RenderFillCircle(SDL_Renderer* renderer, float x, float y, int radius){
     int offsetx, offsety, d;
     int status;
 

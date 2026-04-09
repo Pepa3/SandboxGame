@@ -22,6 +22,7 @@ constexpr float PLAYER_SPEED = 7;
 constexpr float GRAVITY = 0.5;
 constexpr float JUMP_IMPULE = 8;
 constexpr size_t INVENTORY_SIZE = 5;
+constexpr size_t PLACE_MILLIS = 250;
 constexpr int tileSize = 32;
 constexpr size_t tileMapWidth = 10, tileMapHeight = 10;
 constexpr int chSize = 50;
@@ -41,6 +42,7 @@ enum Tile :uint8_t{
 constexpr bool isSolid(Tile t){
 	switch(t){
 	case AIR:
+	case LEAVES:
 		return false;
 	default:
 		return true;
@@ -53,6 +55,15 @@ constexpr bool isSolid(Tile t){
 class Map;
 class Player;
 
+class Block{
+public:
+	Block(Tile t1, double fl = 0):t(t1),fluid(fl){}
+	Block():t(Tile::UNKNOWN),fluid(0){}
+	Tile t;
+	double fluid;
+	operator Tile&(){ return t; }
+};
+
 class Map{
 public:
 	Map();
@@ -64,12 +75,12 @@ public:
 	bool load(const std::string& file);
 	void handleKeyDown(char key);
 	void place(int x, int y, Tile t);
-	bool isSolid(int x, int y);
+	inline bool isSolid(int x, int y);
 	int tPosX(int x)const;
 	int tPosY(int y)const;
 	inline float posX(int x)const;
 	inline float posY(int y)const;
-	inline Tile& world(int x, int y);
+	inline Block& world(int x, int y);
 	class Chunk{
 	public:
 		Chunk(short x, short y);
@@ -78,7 +89,7 @@ public:
 		void generateTree(int x, int y);
 		void update();
 		short x, y;
-		Tile data[chSize * chSize];
+		Block data[chSize * chSize];
 	};
 	
 private:
@@ -120,6 +131,8 @@ GLOBAL(SDL_Texture* tiles[0xff])\
 GLOBAL(float cameraX)\
 GLOBAL(float cameraY)\
 GLOBAL(uint64_t lastUpdateTicks)\
+GLOBAL(uint64_t lastPlaceTicks)\
+GLOBAL(uint64_t lastBreakTicks)\
 GLOBAL(Map* map)\
 
 #ifdef HELPER_INIT
@@ -132,5 +145,5 @@ GLOBAL(Map* map)\
 # undef GLOBAL
 #endif
 
-int SDL_RenderCircle(SDL_Renderer* renderer, int x, int y, int radius);
-int SDL_RenderFillCircle(SDL_Renderer* renderer, int x, int y, int radius);
+int SDL_RenderCircle(SDL_Renderer* renderer, float x, float y, int radius);
+int SDL_RenderFillCircle(SDL_Renderer* renderer, float x, float y, int radius);
