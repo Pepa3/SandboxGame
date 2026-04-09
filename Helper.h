@@ -36,7 +36,7 @@ const siv::PerlinNoise perlin{seed};
 */
 
 enum Tile :uint8_t{
-	UNKNOWN = 0, AIR = 1, DIRT = 2, STONE = 3, WOOD = 4, SAND = 5, PLAYER=10
+	UNKNOWN = 0, AIR = 1, DIRT = 2, STONE = 3, WOOD = 4, SAND = 5, LEAVES=6, PLAYER=10
 };
 constexpr bool isSolid(Tile t){
 	switch(t){
@@ -75,6 +75,8 @@ public:
 		Chunk(short x, short y);
 		Chunk();
 		void generate();
+		void generateTree(int x, int y);
+		void update();
 		short x, y;
 		Tile data[chSize * chSize];
 	};

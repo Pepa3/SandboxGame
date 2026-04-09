@@ -11,7 +11,7 @@ void Player::update(){//TODO: ugly, it still does not work ideally, but it works
 	int button = SDL_GetMouseState(&mox, &moy);
 	//TODO: handle only on mouseDown events --- maybe not
 	if(button & SDL_BUTTON_LMASK){
-		map->place(map->tPosX(mox), map->tPosY(moy), Tile::STONE);
+		map->place(map->tPosX(mox), map->tPosY(moy), Tile::SAND);
 	} else if(button & SDL_BUTTON_RMASK){
 		map->place(map->tPosX(mox), map->tPosY(moy), Tile::AIR);
 	}

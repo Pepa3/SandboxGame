@@ -71,21 +71,33 @@ void Map::Chunk::generate(){
 	constexpr int dirtHeight = 5;
 	int gx = x * chSize;
 	int gy = y * chSize;
+	//const bool forested = perlin.noise2D_01(gx * 0.01, 2) > 0.5;
 	for(int i = 0; i < chSize; i++){
 		const int n1 = perlin.noise2D((gx+i) * 0.01, 1) * TERRAIN_STEEPNESS+100;
 		for(int j = 0; j < chSize; j++){
 			if(j+gy<n1)data[i + j * chSize] = Tile::AIR;
 			else if(j+gy<n1+dirtHeight)data[i + j * chSize] = Tile::DIRT;
 			else data[i + j * chSize] = Tile::STONE;
+
+			if(i == chSize / 2 && j + gy == n1)generateTree(i,j);
 		}
 	}
-	//TODO: generate proper trees
-	/*for(size_t x = 0; x < mWidth; x++){
-		if(rand() % 100 > 10)continue;
-		const int n1 = perlin.noise2D_01(x * 0.01, 1) * mHeight;
-		const int n2 = perlin.noise2D_01(x * 0.01, 2) * n1;
-		for(size_t y = 0; y < rand()%12; y++){
-			world[x + n2 * mWidth-y*mWidth] = Tile::WOOD;
+}
+
+void Map::Chunk::generateTree(int tx, int ty){
+	for(int i = 0; i < 7; i++){
+		if(ty - i >= 0){
+			data[tx + (ty - i) * chSize] = Tile::WOOD;
+			//Tile::LEAVES
+		}
+	}
+}
+
+void Map::Chunk::update(){
+	/*for(size_t i = 0; i < mWidth * (mHeight - 1); i++){//TODO: this is a bad idea
+		if(world[i] == Tile::SAND && world[i + mWidth] == Tile::AIR){
+			world[i] = Tile::AIR;
+			world[i + mWidth] = Tile::SAND;
 		}
 	}*/
 }
@@ -98,12 +110,19 @@ void Map::place(int x, int y, Tile t){
 }
 
 void Map::update(){
-	/*for(size_t i = 0; i < mWidth * (mHeight - 1); i++){//TODO: this is a bad idea
-		if(world[i] == Tile::SAND && world[i + mWidth] == Tile::AIR){
-			world[i] = Tile::AIR;
-			world[i + mWidth] = Tile::SAND;
+	int beginX = (cameraX - wWidth / 2) / tileSize - 1;
+	int beginY = (cameraY - wHeight / 2) / tileSize - 1;
+	int endX = (cameraX + wWidth / 2) / tileSize + 1;
+	int endY = (cameraY + wHeight / 2) / tileSize + 1;
+	for(int x = beginX; x < endX; x++){
+		for(int y = beginY; y < endY; y++){
+			if(world(x,y) == Tile::SAND && world(x,y+1) == Tile::AIR){
+				world(x,y) = Tile::AIR;
+				world(x,y+1) = Tile::SAND;
+			}
 		}
-	}*/
+	}
+	
 	player->update();
 }
 
