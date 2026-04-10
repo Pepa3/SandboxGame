@@ -1,7 +1,25 @@
 #include "Helper.h"
+#include <iostream>
 
 Player::Player(float x1, float y1) :x(x1),y(y1){
 
+}
+
+bool Player::addInventory(Block b){
+	for(size_t i = 0; i < INVENTORY_SIZE; i++){
+		if(inventory[i].type == b.t){
+			inventory[i].count++;
+			return true;
+		}
+	}
+	for(size_t i = 0; i < INVENTORY_SIZE; i++){
+		if(inventory[i].type == Tile::UNKNOWN){
+			inventory[i] = {b.t,1};
+			return true;
+		}
+	}
+
+	return false;
 }
 
 void Player::update(){//TODO: ugly, it still does not work ideally, but it works with negative positions
@@ -9,7 +27,7 @@ void Player::update(){//TODO: ugly, it still does not work ideally, but it works
 
 	float mox, moy;
 	int button = SDL_GetMouseState(&mox, &moy);
-	//TODO: handle only on mouseDown events --- maybe not
+	//TODO: make blocks have durability and drop into inventory/hotbar
 	int tx = map->tPosX((int) mox);
 	int ty = map->tPosY((int) moy);
 	if(button & SDL_BUTTON_LMASK){
@@ -20,7 +38,15 @@ void Player::update(){//TODO: ugly, it still does not work ideally, but it works
 	} else if(button & SDL_BUTTON_RMASK){
 		if(lastBreakTicks <= SDL_GetTicks() - PLACE_MILLIS){
 			lastBreakTicks = SDL_GetTicks();
-			map->place(tx, ty, Tile::AIR);
+			Block& b = map->destroy(tx, ty);
+			if(b!=Tile::UNKNOWN){
+				if(addInventory(b)){
+					b = Tile::AIR;
+				} else{
+					std::cout << "No space in inventory\n";
+					b = Tile::AIR;
+				}
+			}
 			//map->world(tx, ty).fluid = 0.4;
 		}
 	}
@@ -83,11 +109,17 @@ void Player::render(){
 
 	for(size_t i = 0; i < INVENTORY_SIZE; i++){
 		const SDL_FRect itemFrameRect = {wWidth / 2 - (INVENTORY_SIZE / 2.f - i) * tileSize * 3.f,wHeight - tileSize * 3.f,tileSize * 2.f,tileSize * 2.f};
-		SDL_SetRenderDrawColor(renderer, 0xaa, 0xaa, 0xee, 0xff);
+		SDL_SetRenderDrawColor(renderer, 0xff, 0xff, 0xff, 0xff);
 		SDL_RenderRect(renderer, &itemFrameRect);
-		if(inventory[i].type != Tile::UNKNOWN){
+		if(inventory[i].type != Tile::UNKNOWN && inventory[i].count != 0){
 			const SDL_FRect itemRect = {wWidth / 2 - (INVENTORY_SIZE / 2.f - i) * tileSize * 3.f + tileSize / 2,wHeight - tileSize * 3.f + tileSize / 2, (float)tileSize, (float) tileSize};
 			SDL_RenderTexture(renderer, tiles[inventory[i].type], &tileFRect, &itemRect);
+			char string[3];
+			SDL_snprintf(string, sizeof(string), "%d", inventory[i].count);
+			TTF_SetTextString(text, string, 0);
+			int w = 0;
+			TTF_MeasureString(font, string, 2, 0, &w, nullptr);
+			TTF_DrawRendererText(text, itemRect.x+tileSize/2-w/2, itemRect.y + tileSize*3/2);
 		}
 	}
 }

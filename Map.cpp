@@ -83,6 +83,7 @@ void Map::Chunk::generate(){
 				if(gy+j>120)b.fluid = 1;
 				data[i + j * chSize] = b;
 			}
+			else if(j+gy==n1)data[i + j * chSize] = Tile::GRASS;
 			else if(j+gy<n1+dirtHeight)data[i + j * chSize] = Tile::DIRT;
 			else data[i + j * chSize] = Tile::STONE;
 
@@ -92,7 +93,7 @@ void Map::Chunk::generate(){
 }
 
 void Map::Chunk::generateTree(int tx, int ty){
-	for(int i = 0; i < 7; i++){
+	for(int i = 0; i < 6; i++){
 		if(ty - i >= 0){
 			data[tx + (ty - i) * chSize] = Tile::WOOD;
 		}
@@ -107,6 +108,8 @@ void Map::Chunk::generateTree(int tx, int ty){
 	}
 	if(ty>=7)
 	data[tx + (ty - 7) * chSize] = Tile::LEAVES;
+	if(ty >= 6)
+		data[tx + (ty - 6) * chSize] = Tile::LEAVES;
 }
 
 void Map::Chunk::update(){
@@ -124,6 +127,14 @@ void Map::handleKeyDown(char key){
 void Map::place(int x, int y, Tile t){
 	world(x,y) = t;
 }
+
+Block& Map::destroy(int x, int y){
+	Block& b = world(x, y);
+	if(!::isSolid(b.t))return nullBlock;
+	if(b == Tile::GRASS)b = Tile::DIRT;
+	return b;
+}
+
 
 void Map::update(){
 	int beginX = (int) (cameraX - wWidth / 2) / tileSize - chSize;

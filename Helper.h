@@ -37,7 +37,7 @@ const siv::PerlinNoise perlin{seed};
 */
 
 enum Tile :uint8_t{
-	UNKNOWN = 0, AIR = 1, DIRT = 2, STONE = 3, WOOD = 4, SAND = 5, LEAVES=6, PLAYER=10
+	UNKNOWN = 0, AIR = 1, DIRT = 2, STONE = 3, WOOD = 4, SAND = 5, LEAVES=6, GRASS=7, PLAYER=10
 };
 constexpr bool isSolid(Tile t){
 	switch(t){
@@ -46,6 +46,17 @@ constexpr bool isSolid(Tile t){
 		return false;
 	default:
 		return true;
+	}
+}
+constexpr int durability(Tile t){
+	switch(t){
+	case DIRT:
+	case SAND:
+		return 5;
+	case STONE:
+		return 20;
+	default:
+		return 1;
 	}
 }
 
@@ -75,6 +86,7 @@ public:
 	bool load(const std::string& file);
 	void handleKeyDown(char key);
 	void place(int x, int y, Tile t);
+	Block& destroy(int x, int y);
 	inline bool isSolid(int x, int y);
 	int tPosX(int x)const;
 	int tPosY(int y)const;
@@ -93,8 +105,8 @@ public:
 	};
 	
 private:
-	std::unordered_map<uint32_t, Chunk*> chunks;
 	Player* player;
+	std::unordered_map<uint32_t, Chunk*> chunks;
 };
 
 class Player{
@@ -103,6 +115,7 @@ public:
 	Player(float x, float y);
 	void render();
 	void update();
+	bool addInventory(Block b);
 	//void save(std::ofstream& out)const;
 	//void load(std::ifstream& in);
 private:
@@ -110,9 +123,9 @@ private:
 	float yVel=0.f;
 	bool onGround=false;
 	struct Item{
-		Tile type;
-		size_t count;
-	} inventory[INVENTORY_SIZE] = {Tile::UNKNOWN};
+		Tile type = Tile::UNKNOWN;
+		size_t count = 0;
+	} inventory[INVENTORY_SIZE];
 };
 
 /*
@@ -134,15 +147,20 @@ GLOBAL(uint64_t lastUpdateTicks)\
 GLOBAL(uint64_t lastPlaceTicks)\
 GLOBAL(uint64_t lastBreakTicks)\
 GLOBAL(Map* map)\
+GLOBALI(Block nullBlock, Block(Tile::UNKNOWN))\
 
 #ifdef HELPER_INIT
 # define GLOBAL(what) what;
+# define GLOBALI(what, init) what = init;
   GLOBALS
 # undef GLOBAL
+# undef GLOBALI
 #else
 # define GLOBAL(what) extern what;
+# define GLOBALI(what,init) extern what;
   GLOBALS
 # undef GLOBAL
+# undef GLOBALI
 #endif
 
 int SDL_RenderCircle(SDL_Renderer* renderer, float x, float y, int radius);
