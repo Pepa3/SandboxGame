@@ -84,7 +84,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv){
 	SDL_DestroySurface(tilemap);
 
 	map = new Map();
-	//if(!map->load("test1.save"))
+	if(!map->load("test1.save"))
 	map->generateWorld();
 
 	return SDL_APP_CONTINUE;
@@ -137,6 +137,8 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event){
 		if(event->button.button == SDL_BUTTON_LEFT){
 		} else if(event->button.button == SDL_BUTTON_RIGHT){
 		}
+	} else if(event->type == SDL_EVENT_MOUSE_WHEEL){
+		map->handleMouseWheel(event->wheel);
 	}
 	return SDL_APP_CONTINUE;
 }

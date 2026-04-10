@@ -83,7 +83,12 @@ void Map::Chunk::generate(){
 				if(gy+j>100)b.fluid = 1;
 				data[i + j * chSize] = b;
 			}
-			else if(j+gy==n1)data[i + j * chSize] = Tile::GRASS;
+			else if(j + gy == n1){
+				if(gy + j < 100)
+					data[i + j * chSize] = Tile::GRASS;
+				else
+					data[i + j * chSize] = Tile::SAND;
+			}
 			else if(j+gy<n1+dirtHeight)data[i + j * chSize] = Tile::DIRT;
 			else data[i + j * chSize] = Tile::STONE;
 
@@ -137,13 +142,29 @@ void Map::Chunk::update(){
 void Map::handleKeyDown(char key){
 }
 
-void Map::place(int x, int y, Tile t){
-	world(x,y) = t;
+void Map::handleMouseWheel(SDL_MouseWheelEvent event){
+	bool dir = event.integer_y < 0;
+	if(dir){
+		player->selectedSlot++;
+		if(player->selectedSlot >= INVENTORY_SIZE) player->selectedSlot = 0;
+	} else{
+		player->selectedSlot--;
+		if(player->selectedSlot < 0)player->selectedSlot = INVENTORY_SIZE - 1;
+	}
+}
+
+bool Map::place(int x, int y, Tile t){
+	Block& b = world(x, y);
+	if(::isSolid(b)){
+		return false;
+	}
+	b = t;
+	return true;
 }
 
 Block& Map::destroy(int x, int y){
 	Block& b = world(x, y);
-	if(!::isSolid(b.t))return nullBlock;
+	if(!::isSolid(b))return nullBlock;
 	if(b == Tile::GRASS)b = Tile::DIRT;
 	return b;
 }

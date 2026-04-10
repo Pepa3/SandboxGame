@@ -85,7 +85,8 @@ public:
 	bool save(const std::string &file)const;
 	bool load(const std::string& file);
 	void handleKeyDown(char key);
-	void place(int x, int y, Tile t);
+	void handleMouseWheel(SDL_MouseWheelEvent event);
+	bool place(int x, int y, Tile t);
 	Block& destroy(int x, int y);
 	inline bool isSolid(int x, int y);
 	int tPosX(int x)const;
@@ -126,6 +127,7 @@ private:
 		Tile type = Tile::UNKNOWN;
 		size_t count = 0;
 	} inventory[INVENTORY_SIZE];
+	char selectedSlot = 0;
 };
 
 /*

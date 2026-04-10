@@ -27,19 +27,23 @@ void Player::update(){//TODO: ugly, it still does not work ideally, but it works
 
 	float mox, moy;
 	int button = SDL_GetMouseState(&mox, &moy);
-	//TODO: make blocks have durability and drop into inventory/hotbar
+	//TODO: make blocks have durability
 	int tx = map->tPosX((int) mox);
 	int ty = map->tPosY((int) moy);
 	if(button & SDL_BUTTON_LMASK){
 		if(lastPlaceTicks <= SDL_GetTicks() - PLACE_MILLIS){
-			lastPlaceTicks = SDL_GetTicks();
-			map->place(tx, ty, Tile::SAND);
+			if(inventory[selectedSlot].count != 0){
+				lastPlaceTicks = SDL_GetTicks();
+				if(map->place(tx, ty, inventory[selectedSlot].type)){
+					inventory[selectedSlot].count--;
+				}
+			}
 		}
 	} else if(button & SDL_BUTTON_RMASK){
 		if(lastBreakTicks <= SDL_GetTicks() - PLACE_MILLIS){
-			lastBreakTicks = SDL_GetTicks();
 			Block& b = map->destroy(tx, ty);
 			if(b!=Tile::UNKNOWN){
+				lastBreakTicks = SDL_GetTicks();
 				if(addInventory(b)){
 					b = Tile::AIR;
 				} else{
@@ -47,7 +51,6 @@ void Player::update(){//TODO: ugly, it still does not work ideally, but it works
 					b = Tile::AIR;
 				}
 			}
-			//map->world(tx, ty).fluid = 0.4;
 		}
 	}
 
@@ -111,6 +114,10 @@ void Player::render(){
 		const SDL_FRect itemFrameRect = {wWidth / 2 - (INVENTORY_SIZE / 2.f - i) * tileSize * 3.f,wHeight - tileSize * 3.f,tileSize * 2.f,tileSize * 2.f};
 		SDL_SetRenderDrawColor(renderer, 0xff, 0xff, 0xff, 0xff);
 		SDL_RenderRect(renderer, &itemFrameRect);
+		if(i == selectedSlot){
+			const SDL_FRect itemSelRect = {wWidth / 2 - (INVENTORY_SIZE / 2.f - i) * tileSize * 3.f+2,wHeight - tileSize * 3.f+2,tileSize * 2.f-4,tileSize * 2.f-4};
+			SDL_RenderRect(renderer, &itemSelRect);
+		}
 		if(inventory[i].type != Tile::UNKNOWN && inventory[i].count != 0){
 			const SDL_FRect itemRect = {wWidth / 2 - (INVENTORY_SIZE / 2.f - i) * tileSize * 3.f + tileSize / 2,wHeight - tileSize * 3.f + tileSize / 2, (float)tileSize, (float) tileSize};
 			SDL_RenderTexture(renderer, tiles[inventory[i].type], &tileFRect, &itemRect);
@@ -120,6 +127,7 @@ void Player::render(){
 			int w = 0;
 			TTF_MeasureString(font, string, 2, 0, &w, nullptr);
 			TTF_DrawRendererText(text, itemRect.x+tileSize/2-w/2, itemRect.y + tileSize*3/2);
+			
 		}
 	}
 }
