@@ -26,7 +26,7 @@ constexpr size_t PLACE_MILLIS = 250;
 constexpr int tileSize = 32;
 constexpr size_t tileMapWidth = 10, tileMapHeight = 10;
 constexpr int chSize = 50;
-constexpr size_t TERRAIN_STEEPNESS = 100;
+constexpr size_t TERRAIN_STEEPNESS = 80;
 constexpr SDL_Rect tileRect = {0,0,tileSize,tileSize};
 constexpr SDL_FRect tileFRect = {0,0,tileSize,tileSize};
 const siv::PerlinNoise::seed_type seed = 19254792u;

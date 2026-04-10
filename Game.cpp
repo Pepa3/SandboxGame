@@ -105,13 +105,13 @@ SDL_AppResult SDL_AppIterate(void* appstate){
 
 	map->render();
 
+	static char string[6];
 	if(lastFPSTime + 1000 <= SDL_GetTicks()){
-		char string[6];
 		SDL_snprintf(string, sizeof(string), "%.2f", frames/(float)(SDL_GetTicks()-lastFPSTime)*1000.f);
-		TTF_SetTextString(text, string, 0);
 		lastFPSTime = SDL_GetTicks();
 		frames = 0;
 	}
+	TTF_SetTextString(text, string, 0);
 	TTF_DrawRendererText(text, 10, 10);
 
 	SDL_RenderPresent(renderer);

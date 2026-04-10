@@ -80,7 +80,7 @@ void Map::Chunk::generate(){
 		for(int j = 0; j < chSize; j++){
 			if(j + gy < n1){
 				Block b = {Tile::AIR,0};
-				if(gy+j>120)b.fluid = 1;
+				if(gy+j>100)b.fluid = 1;
 				data[i + j * chSize] = b;
 			}
 			else if(j+gy==n1)data[i + j * chSize] = Tile::GRASS;
@@ -93,9 +93,13 @@ void Map::Chunk::generate(){
 }
 
 void Map::Chunk::generateTree(int tx, int ty){
+	int mx = x * chSize;
+	int my = y * chSize;
 	for(int i = 0; i < 6; i++){
 		if(ty - i >= 0){
 			data[tx + (ty - i) * chSize] = Tile::WOOD;
+		} else{
+			map->world(mx + tx, my + ty - i) = Tile::WOOD;
 		}
 	}
 	for(int j = 1; j <= 3; j++){
@@ -103,13 +107,22 @@ void Map::Chunk::generateTree(int tx, int ty){
 			if(ty - i >= 0){
 				data[-j + tx + (ty - i) * chSize] = Tile::LEAVES;
 				data[j + tx + (ty - i) * chSize] = Tile::LEAVES;
+			} else{
+				map->world(mx - j + tx, my + ty - i) = Tile::LEAVES;
+				map->world(mx + j + tx, my + ty - i) = Tile::LEAVES;
 			}
 		}
 	}
-	if(ty>=7)
-	data[tx + (ty - 7) * chSize] = Tile::LEAVES;
-	if(ty >= 6)
+	if(ty >= 7){
+		data[tx + (ty - 7) * chSize] = Tile::LEAVES;
+	} else{
+		map->world(mx + tx, my + ty - 7) = Tile::LEAVES;
+	}
+	if(ty >= 6){
 		data[tx + (ty - 6) * chSize] = Tile::LEAVES;
+	} else{
+		map->world(mx + tx, my + ty - 6) = Tile::LEAVES;
+	}
 }
 
 void Map::Chunk::update(){

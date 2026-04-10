@@ -66,7 +66,7 @@ void Player::update(){//TODO: ugly, it still does not work ideally, but it works
 		} else if(!map->isSolid(mX + 1, mY) //can snap?
 			&& !(!onGround && map->isSolid(mX + 1, mY + 1))
 			){
-			x = x + (mX - (x / tileSize)) * tileSize +32;
+			x = x + (mX - (x / tileSize)) * tileSize +tileSize;
 		}
 	} else if(key_states[SDL_SCANCODE_A]){
 		if(!map->isSolid((int) floorf((x - PLAYER_SPEED) / tileSize), mY)
