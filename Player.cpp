@@ -30,25 +30,31 @@ void Player::update(){//TODO: ugly, it still does not work ideally, but it works
 	//TODO: make blocks have durability
 	int tx = map->tPosX((int) mox);
 	int ty = map->tPosY((int) moy);
+	if(breakX != tx || breakY != ty){
+		breakDurability = 0;
+		breakMaxDurability = durability(map->world(tx,ty).t);
+		breakX = tx;
+		breakY = ty;
+	}
 	if(button & SDL_BUTTON_LMASK){
 		if(lastPlaceTicks <= SDL_GetTicks() - PLACE_MILLIS){
 			if(inventory[selectedSlot].count != 0){
-				lastPlaceTicks = SDL_GetTicks();
 				if(map->place(tx, ty, inventory[selectedSlot].type)){
+					lastPlaceTicks = SDL_GetTicks();
 					inventory[selectedSlot].count--;
 				}
+			} else{//TODO: DEBUG ONLY
+				map->world(tx, ty).fluid = 1;
 			}
 		}
 	} else if(button & SDL_BUTTON_RMASK){
-		if(lastBreakTicks <= SDL_GetTicks() - PLACE_MILLIS){
-			Block& b = map->destroy(tx, ty);
-			if(b!=Tile::UNKNOWN){
-				lastBreakTicks = SDL_GetTicks();
+		Block& b = map->destroy(tx, ty);
+		if(b.t != Tile::UNKNOWN){
+			breakDurability++;
+			if(true /*breakDurability >= breakMaxDurability*/){//TODO: DEBUG ONLY
+				breakDurability = 0;
 				if(addInventory(b)){
-					b = Tile::AIR;
-				} else{
-					std::cout << "No space in inventory\n";
-					b = Tile::AIR;
+					b.t = Tile::AIR;
 				}
 			}
 		}
@@ -95,10 +101,20 @@ void Player::update(){//TODO: ugly, it still does not work ideally, but it works
 	bool mayBeOnGround = map->isSolid(mX, mY + 2) || (mX - (x / tileSize) != 0.f && map->isSolid(mX + 1, mY + 2));
 	distanceToTileBoundary = 32 + (mY - y / tileSize)*tileSize;
 
-	if(!onGround){// IN AIR
+	Block& b = map->world(mX, mY);
+
+	if(!onGround){// IN AIR (or water)
 		yVel += GRAVITY;
+		if(b.fluid != 0){
+			yVel = SINK_RATE;
+			if(key_states[SDL_SCANCODE_W]){
+				yVel = -JUMP_IMPULE;
+			}else if(key_states[SDL_SCANCODE_S]){
+				yVel = JUMP_IMPULE;
+			}
+		}
 		if(mayBeOnGround && distanceToTileBoundary < yVel)yVel = distanceToTileBoundary;
-	} else{ // ON GROUND
+	}else{// ON GROUND
 		yVel = 0;
 		if(key_states[SDL_SCANCODE_W]){
 			yVel = -JUMP_IMPULE;
@@ -109,6 +125,11 @@ void Player::update(){//TODO: ugly, it still does not work ideally, but it works
 void Player::render(){
 	const SDL_FRect dest = {x - cameraX + wWidth / 2, y - cameraY + wHeight / 2, tileSize, tileSize};
 	SDL_RenderTexture(renderer, tiles[Tile::PLAYER], &tileFRect, &dest);
+	const SDL_FRect breakBlk = {map->posX(breakX),map->posY(breakY),tileSize,tileSize};
+	char p = (char) (((float) breakDurability / (float) breakMaxDurability) * 0xff);
+	SDL_SetRenderDrawColor(renderer,0,0,0,p);
+	SDL_RenderFillRect(renderer, &breakBlk);
+
 
 	for(size_t i = 0; i < INVENTORY_SIZE; i++){
 		const SDL_FRect itemFrameRect = {wWidth / 2 - (INVENTORY_SIZE / 2.f - i) * tileSize * 3.f,wHeight - tileSize * 3.f,tileSize * 2.f,tileSize * 2.f};

@@ -31,7 +31,7 @@ int Map::tPosX(int x)const{
 int Map::tPosY(int y)const{
 	return (int) floorf((y + cameraY - wHeight / 2.f) / tileSize);
 }
-#define KEY(high,low)(((uint32_t)high << 16) | ((uint32_t) low)&0xFFFF)
+#define KEY(high,low)(((uint32_t)(high) << 16) | ((uint32_t) (low))&0xFFFF)
 
 inline Block& Map::world(int x, int y){
 	short cx = (short) floorf(x / (float) chSize);
@@ -39,16 +39,17 @@ inline Block& Map::world(int x, int y){
 	uint32_t key = KEY(cx, cy);
 	try{
 		return chunks.at(key)->data[(x - cx * chSize) + (y - cy * chSize) * chSize];
-	} catch(const std::exception& _){
+	} catch(const std::out_of_range& _){
 		Chunk* ch = new Chunk(cx, cy);
 		ch->generate();
 		chunks.insert({key, ch});
 		return chunks.at(key)->data[(x - cx * chSize) + (y - cy * chSize) * chSize];
+		(void) _;
 	}
 }
 
-inline bool Map::isSolid(int x, int y){
-	return ::isSolid(world(x,y));
+bool Map::isSolid(int x, int y){
+	return ::isSolid(world(x,y).t);
 }
 
 void Map::generateWorld(){
@@ -59,19 +60,36 @@ void Map::generateWorld(){
 			chunks.insert({KEY(i,j), ch});
 		}
 	}
+	double wx = 0;
+	double wy = (int) (perlin.noise2D(0, 1) * TERRAIN_STEEPNESS) + 100;
+	double seed = wy;
+	int length = 0;
+	double dx = 0, dy = 0;
+	while(length < 1000){
+		world((int) wx, (int) wy).t = Tile::AIR;
+		world((int) wx, (int) wy - 1).t = Tile::AIR;
+		world((int) wx, (int) wy + 1).t = Tile::AIR;
+		world((int) wx + 1, (int) wy - 1).t = Tile::AIR;
+		world((int) wx + 1, (int) wy + 1).t = Tile::AIR;
+		world((int) wx + 1, (int) wy).t = Tile::AIR;
+		dx += 1;// perlin.noise2D(seed, 0 + length * 0.1);
+		dy += perlin.noise2D(seed, 0 + length * 0.1);
+		wx += dx;
+		dx -= dx / fabs(dx);
+		wy += dy;
+		dy -= dy / fabs(dy);
+		length += 1;
+	}
 }
 
-Map::Chunk::Chunk():x(0),y(0){}
-
 Map::Chunk::Chunk(short x, short y) :x(x), y(y) {
-	std::cout << "Created chunk [" << x << "][" << y << "]" << std::endl;
+	std::cout << "Created chunk [" << x << "][" << y << "]:\""<< KEY(x,y) << "\"" << std::endl;
 	for(size_t i = 0; i < chSize*chSize; i++){
-		data[i] = Tile::AIR;
+		data[i] = Block(Tile::AIR, Tile::AIR, 0);
 	}
 }
 
 void Map::Chunk::generate(){
-	constexpr int dirtHeight = 5;
 	int gx = x * chSize;
 	int gy = y * chSize;
 	int treeHeight = (int) (perlin.noise2D((gx + chSize / 2) * 0.01, 1) * TERRAIN_STEEPNESS) + 100;
@@ -79,22 +97,23 @@ void Map::Chunk::generate(){
 		const int n1 = (int)(perlin.noise2D((gx+i) * 0.01, 1) * TERRAIN_STEEPNESS)+100;
 		for(int j = 0; j < chSize; j++){
 			if(j + gy < n1){
-				Block b = {Tile::AIR,0};
+				Block b = Block(Tile::AIR,Tile::AIR, 0);
 				if(gy+j>100)b.fluid = 1;
 				data[i + j * chSize] = b;
 			}
 			else if(j + gy == n1){
 				if(gy + j < 100)
-					data[i + j * chSize] = Tile::GRASS;
+					data[i + j * chSize] = Block(Tile::GRASS,Tile::DIRT, 0);
 				else
-					data[i + j * chSize] = Tile::SAND;
+					data[i + j * chSize] = Block(Tile::SAND,Tile::SAND, 0);
 			}
-			else if(j+gy<n1+dirtHeight)data[i + j * chSize] = Tile::DIRT;
-			else data[i + j * chSize] = Tile::STONE;
+			else if(j+gy<n1+dirtHeight)data[i + j * chSize] = Block(Tile::DIRT,Tile::DIRT, 0);
+			else data[i + j * chSize] = Block(Tile::STONE, Tile::STONE, 0);
 
 		}
 	}
-	if(treeHeight-gy < chSize)generateTree(chSize/2, treeHeight-gy);
+	short treeY = (short) floorf(treeHeight / (float) chSize);
+	if(treeY==y)generateTree(chSize/2, treeHeight-gy);
 }
 
 void Map::Chunk::generateTree(int tx, int ty){
@@ -102,41 +121,99 @@ void Map::Chunk::generateTree(int tx, int ty){
 	int my = y * chSize;
 	for(int i = 0; i < 6; i++){
 		if(ty - i >= 0){
-			data[tx + (ty - i) * chSize] = Tile::WOOD;
+			data[tx + (ty - i) * chSize].t = Tile::WOOD;
 		} else{
-			map->world(mx + tx, my + ty - i) = Tile::WOOD;
+			map->world(mx + tx, my + ty - i).t = Tile::WOOD;
 		}
 	}
 	for(int j = 1; j <= 3; j++){
 		for(int i = 2+j; i < 9-j; i++){
 			if(ty - i >= 0){
-				data[-j + tx + (ty - i) * chSize] = Tile::LEAVES;
-				data[j + tx + (ty - i) * chSize] = Tile::LEAVES;
+				data[-j + tx + (ty - i) * chSize] = Block(Tile::LEAVES, Tile::AIR);
+				data[j + tx + (ty - i) * chSize] = Block(Tile::LEAVES, Tile::AIR);
 			} else{
-				map->world(mx - j + tx, my + ty - i) = Tile::LEAVES;
-				map->world(mx + j + tx, my + ty - i) = Tile::LEAVES;
+				map->world(mx - j + tx, my + ty - i) = Block(Tile::LEAVES, Tile::AIR);
+				map->world(mx + j + tx, my + ty - i) = Block(Tile::LEAVES, Tile::AIR);
 			}
 		}
 	}
 	if(ty >= 7){
-		data[tx + (ty - 7) * chSize] = Tile::LEAVES;
+		data[tx + (ty - 7) * chSize] = Block(Tile::LEAVES, Tile::AIR);
 	} else{
-		map->world(mx + tx, my + ty - 7) = Tile::LEAVES;
+		map->world(mx + tx, my + ty - 7) = Block(Tile::LEAVES, Tile::AIR);
 	}
 	if(ty >= 6){
-		data[tx + (ty - 6) * chSize] = Tile::LEAVES;
+		data[tx + (ty - 6) * chSize] = Block(Tile::LEAVES, Tile::AIR);
 	} else{
-		map->world(mx + tx, my + ty - 6) = Tile::LEAVES;
+		map->world(mx + tx, my + ty - 6) = Block(Tile::LEAVES, Tile::AIR);
 	}
 }
 
 void Map::Chunk::update(){
-	/*for(size_t i = 0; i < mWidth * (mHeight - 1); i++){//TODO: this is a bad idea
-		if(world[i] == Tile::SAND && world[i + mWidth] == Tile::AIR){
-			world[i] = Tile::AIR;
-			world[i + mWidth] = Tile::SAND;
+	for(size_t i = 0; i < chSize; i++){
+		for(size_t j = 0; j < chSize; j++){
+			Block& b = data[i + j * chSize];
+			if(b.t == Tile::SAND){
+				Block& under = (j < chSize - 1)
+					? data[i + (j + 1) * chSize]
+					: map->world(x * chSize + i, y * chSize + j + 1);
+				if(under.t == Tile::AIR){
+					Block tmp = b;
+					b = Block(under.t, b.bg, under.fluid);
+					under = Block(tmp.t, under.bg, tmp.fluid);
+				}
+			}
+			float& fl1 = b.fluid;
+			if(fl1 > 0){
+				Block& under = (j < chSize - 1)
+					? data[i + (j + 1) * chSize]
+					: map->world(x * chSize + i, y * chSize + j + 1);
+				float& flu = under.fluid;
+				if(!::isSolid(under.t)){
+					float fl = fl1 + flu;
+					if(fl <= 1){
+						flu = fl;
+						fl1 = 0;
+					} else if(fl > 1){
+						flu = fmin((1+fl*0.25)/(1.25),fl);//TODO: WIP
+						fl1 = fl-flu;
+					}
+				}
+				if(fl1 > 0){
+					//Spill horizontally
+					Block& left = (i > 0)
+						? data[i - 1 + j * chSize]
+						: map->world(x * chSize + i - 1, y * chSize + j);
+					Block& right = (i < chSize - 1)
+						? data[i + 1 + j * chSize]
+						: map->world(x * chSize + i + 1, y * chSize + j);
+					float fldl = fl1 - left.fluid;
+					float fldr = fl1 - right.fluid;
+					if(!::isSolid(left.t) && fldl > 0){
+						fl1 -= fldl / 3;
+						left.fluid += fldl / 3;
+					}
+					if(!::isSolid(right.t) && fldr > 0){
+						fl1 -= fldr / 3;
+						right.fluid += fldr / 3;
+					}
+				}
+				/*if(fl1 > 0){
+					//Propagate up if high pressure
+					Block& up = (j > 0)
+						? data[i + (j - 1) * chSize]
+						: map->world(x * chSize + i, y * chSize + j - 1);
+					if(!::isSolid(up.t) && b.pressure > up.pressure+1){
+						float fld = fl1 - up.fluid;
+						fl1 -= fld / 4;
+						up.fluid += fld / 4;
+						up.pressure = (short)fmax(0,b.pressure-1);
+					}
+				}*/
+				//if(fl1 == 0)b.pressure = 0;
+			}
 		}
-	}*/
+	}
 }
 
 void Map::handleKeyDown(char key){
@@ -155,62 +232,46 @@ void Map::handleMouseWheel(SDL_MouseWheelEvent event){
 
 bool Map::place(int x, int y, Tile t){
 	Block& b = world(x, y);
-	if(::isSolid(b)){
+	if(::isSolid(b.t)){
 		return false;
 	}
-	b = t;
+	if(b.fluid > 0){//TODO:fluid is destroyed here
+		Block& up = world(x, y - 1);
+		if(!::isSolid(up.t)){
+			up.fluid = fminf(b.fluid+up.fluid,1);
+		}
+	}
+	b.t = t;
+	b.fluid = 0;
 	return true;
 }
 
-Block& Map::destroy(int x, int y){
+Block& Map::destroy(int x, int y){//TODO: repalace with a better system
 	Block& b = world(x, y);
-	if(!::isSolid(b))return nullBlock;
-	if(b == Tile::GRASS)b = Tile::DIRT;
+	if(!::isSolid(b.t))return nullBlock;
+	if(b.t == Tile::GRASS)b.t = Tile::DIRT;
 	return b;
 }
 
 
 void Map::update(){
-	int beginX = (int) (cameraX - wWidth / 2) / tileSize - chSize;
-	int beginY = (int) (cameraY - wHeight / 2) / tileSize - chSize;
-	int endX = (int) (cameraX + wWidth / 2) / tileSize + chSize;
-	int endY = (int) (cameraY + wHeight / 2) / tileSize + chSize;
-	for(int x = beginX; x < endX; x++){
-		for(int y = beginY; y < endY; y++){
-			Block& b = world(x, y);
-			if(b == Tile::SAND && world(x,y+1) == Tile::AIR){
-				Block c = world(x, y + 1);
-				Block tmp = b;
-				b = c;
-				world(x, y + 1) = tmp;
+	short cx = (short) floorf(player->x / chSize / tileSize);
+	short cy = (short) floorf(player->y / chSize / tileSize);
+	for(int i = -UPDATE_RADIUS; i <= UPDATE_RADIUS; i++){
+		for(int j = -UPDATE_RADIUS; j <= UPDATE_RADIUS; j++){
+			uint32_t key = KEY(cx+i, cy+j);
+			Chunk* ch;
+			try{
+				ch = chunks.at(key);
+			} catch(const std::out_of_range& _){
+				ch = new Chunk(cx+i, cy+j);
+				ch->generate();
+				chunks.insert({key, ch});
+				(void) _;
 			}
-			double& fl1 = b.fluid;
-			if(fl1 > 0){
-				double& fl2 = world(x, y + 1).fluid;
-				if(!isSolid(x, y + 1)){
-					double fl = fl1 + fl2;
-					if(fl > 1){
-						fl2 = 1;
-						fl1 = fl - 1;
-					} else{
-						fl2 = fl;
-						fl1 = 0;
-					}
-				}
-				double fldl = fl1 - world(x - 1, y).fluid;
-				double fldr = fl1 - world(x + 1, y).fluid;
-				if(!isSolid(x - 1, y) && fldl > 0){
-					fl1 -= fldl / 3;
-					world(x - 1, y).fluid += fldl / 3;
-				}
-				if(!isSolid(x + 1, y) && fldr > 0){
-					fl1 -= fldr / 3;
-					world(x + 1, y).fluid += fldr / 3;
-				}
-			}
+			ch->update();
 		}
 	}
-	
 	player->update();
 }
 
@@ -228,11 +289,24 @@ void Map::render(){
 
 			Block& b = world(x, y);
 			const SDL_FRect dest = {posX(x),posY(y),tileSize,tileSize};
-			SDL_RenderTexture(renderer, tiles[b], &tileFRect, &dest);
+			if(::hasBackground(b.t) && b.bg!=Tile::AIR){
+				SDL_RenderTexture(renderer, tiles[b.bg], &tileFRect, &dest);
+				const SDL_FRect shadowRect = {posX(x),posY(y),(float) tileSize,(float) tileSize};
+				SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0x55);
+				SDL_RenderFillRect(renderer, &shadowRect);
+			} else{
+				SDL_RenderTexture(renderer, tiles[b.t], &tileFRect, &dest);
+			}
 			if(b.fluid > 0){
-				const SDL_FRect fluidRect = {posX(x),posY(y)+tileSize*(1- (float) b.fluid),(float)tileSize,tileSize* (float) b.fluid};
+				const SDL_FRect fluidRect = {posX(x),posY(y)+tileSize*(1-fmin((float)b.fluid,1)),(float)tileSize,tileSize* fmin((float) b.fluid,1)};
 				SDL_SetRenderDrawColor(renderer,0x44,0x44,0xaa,0xff);
 				SDL_RenderFillRect(renderer, &fluidRect);
+				if(overlay_fluid){
+					char string[4];
+					SDL_snprintf(string, sizeof(string), "%.1f", b.fluid);
+					TTF_SetTextString(text, string, sizeof(string));
+					TTF_DrawRendererText(text, dest.x, dest.y + tileSize / 2);
+				}
 			}
 		}
 	}

@@ -20,12 +20,15 @@
 constexpr const char* TILEMAP_PATH = "./tilemap.png";
 constexpr float PLAYER_SPEED = 7;
 constexpr float GRAVITY = 0.5;
+constexpr float SINK_RATE = 1;
 constexpr float JUMP_IMPULE = 8;
+constexpr int UPDATE_RADIUS = 3;
+constexpr int tileSize = 32;
+constexpr int chSize = 50;
+constexpr int dirtHeight = 5;
 constexpr size_t INVENTORY_SIZE = 5;
 constexpr size_t PLACE_MILLIS = 250;
-constexpr int tileSize = 32;
 constexpr size_t tileMapWidth = 10, tileMapHeight = 10;
-constexpr int chSize = 50;
 constexpr size_t TERRAIN_STEEPNESS = 80;
 constexpr SDL_Rect tileRect = {0,0,tileSize,tileSize};
 constexpr SDL_FRect tileFRect = {0,0,tileSize,tileSize};
@@ -48,13 +51,24 @@ constexpr bool isSolid(Tile t){
 		return true;
 	}
 }
+constexpr bool hasBackground(Tile t){
+	switch(t){
+	case AIR:
+		return true;
+	default:
+		return false;
+	}
+}
 constexpr int durability(Tile t){
 	switch(t){
-	case DIRT:
 	case SAND:
-		return 5;
-	case STONE:
+		return 10;
+	case GRASS:
+	case DIRT:
+	case WOOD:
 		return 20;
+	case STONE:
+		return 100;
 	default:
 		return 1;
 	}
@@ -68,11 +82,11 @@ class Player;
 
 class Block{
 public:
-	Block(Tile t1, double fl = 0):t(t1),fluid(fl){}
-	Block():t(Tile::UNKNOWN),fluid(0){}
-	Tile t;
-	double fluid;
-	operator Tile&(){ return t; }
+	Block(Tile t1, Tile bgnd, float fl = 0):t(t1),fluid(fl),bg(bgnd){}
+	Block(){}
+	Tile t = Tile::UNKNOWN;//Foreground tile
+	Tile bg = Tile::UNKNOWN;//Background tile
+	float fluid = 0;
 };
 
 class Map{
@@ -88,7 +102,7 @@ public:
 	void handleMouseWheel(SDL_MouseWheelEvent event);
 	bool place(int x, int y, Tile t);
 	Block& destroy(int x, int y);
-	inline bool isSolid(int x, int y);
+	bool isSolid(int x, int y);
 	int tPosX(int x)const;
 	int tPosY(int y)const;
 	inline float posX(int x)const;
@@ -97,7 +111,7 @@ public:
 	class Chunk{
 	public:
 		Chunk(short x, short y);
-		Chunk();
+		Chunk() :x(0), y(0){}
 		void generate();
 		void generateTree(int x, int y);
 		void update();
@@ -147,9 +161,13 @@ GLOBAL(float cameraX)\
 GLOBAL(float cameraY)\
 GLOBAL(uint64_t lastUpdateTicks)\
 GLOBAL(uint64_t lastPlaceTicks)\
-GLOBAL(uint64_t lastBreakTicks)\
+GLOBAL(int breakDurability)\
+GLOBAL(int breakMaxDurability)\
+GLOBALI(int breakX,0)\
+GLOBALI(int breakY,0)\
 GLOBAL(Map* map)\
-GLOBALI(Block nullBlock, Block(Tile::UNKNOWN))\
+GLOBALI(Block nullBlock, Block(Tile::UNKNOWN,Tile::UNKNOWN))\
+GLOBALI(bool overlay_fluid, false)\
 
 #ifdef HELPER_INIT
 # define GLOBAL(what) what;

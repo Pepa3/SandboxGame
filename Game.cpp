@@ -84,7 +84,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv){
 	SDL_DestroySurface(tilemap);
 
 	map = new Map();
-	if(!map->load("test1.save"))
+	//if(!map->load("test1.save"))
 	map->generateWorld();
 
 	return SDL_APP_CONTINUE;
@@ -100,7 +100,8 @@ SDL_AppResult SDL_AppIterate(void* appstate){
 		map->update();
 	}
 
-	SDL_SetRenderDrawColor(renderer, 200, 0, 0, 0xff);
+	SDL_SetRenderDrawColor(renderer, 111, 255, 226, 0xff);
+	SDL_SetRenderDrawBlendMode(renderer,SDL_BLENDMODE_BLEND);
 	SDL_RenderClear(renderer);
 
 	map->render();
@@ -128,6 +129,9 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event){
 		switch(key){
 		case SDLK_ESCAPE:
 			return SDL_APP_SUCCESS;
+			break;
+		case SDLK_V:
+			overlay_fluid = !overlay_fluid;
 			break;
 		default:
 			break;
