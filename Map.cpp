@@ -174,9 +174,13 @@ void Map::Chunk::update(){
 					if(fl <= 1){
 						flu = fl;
 						fl1 = 0;
-					} else if(fl > 1){
-						flu = fmin((1+fl*0.25)/(1.25),fl);//TODO: WIP
-						fl1 = fl-flu;
+					} else if(fl > 1 && fl <= 2.25){
+						float k = (fl1 + (flu - 1) * 4) / 2;
+						flu = 1 + k * 0.25;
+						fl1 = fl - 1 - k * 0.25;;
+					} else if(fl > 2.25){
+						fl1 = (fl - 0.25) / 2;
+						flu = (fl + 0.25) / 2;
 					}
 				}
 				if(fl1 > 0){
@@ -188,29 +192,27 @@ void Map::Chunk::update(){
 						? data[i + 1 + j * chSize]
 						: map->world(x * chSize + i + 1, y * chSize + j);
 					float fldl = fl1 - left.fluid;
-					float fldr = fl1 - right.fluid;
 					if(!::isSolid(left.t) && fldl > 0){
-						fl1 -= fldl / 3;
-						left.fluid += fldl / 3;
+						fl1 -= fldl / 2;
+						left.fluid += fldl / 2;
 					}
+					float fldr = fl1 - right.fluid;
 					if(!::isSolid(right.t) && fldr > 0){
-						fl1 -= fldr / 3;
-						right.fluid += fldr / 3;
+						fl1 -= fldr / 2;
+						right.fluid += fldr / 2;
 					}
 				}
-				/*if(fl1 > 0){
+				if(fl1 > 1){
 					//Propagate up if high pressure
 					Block& up = (j > 0)
 						? data[i + (j - 1) * chSize]
 						: map->world(x * chSize + i, y * chSize + j - 1);
-					if(!::isSolid(up.t) && b.pressure > up.pressure+1){
-						float fld = fl1 - up.fluid;
-						fl1 -= fld / 4;
-						up.fluid += fld / 4;
-						up.pressure = (short)fmax(0,b.pressure-1);
+					if(!::isSolid(up.t) && up.fluid == 0){
+						float fld = fl1 - 1;
+						fl1 -= fld / 2;
+						up.fluid += fld / 2;
 					}
-				}*/
-				//if(fl1 == 0)b.pressure = 0;
+				}
 			}
 		}
 	}
