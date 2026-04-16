@@ -131,7 +131,13 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event){
 			return SDL_APP_SUCCESS;
 			break;
 		case SDLK_V:
-			overlay_fluid = !overlay_fluid;
+			overlayFluid = !overlayFluid;
+			break;
+		case SDLK_B:
+			overlayLight = !overlayLight;
+			break;
+		case SDLK_C:
+			debugMode = !debugMode;
 			break;
 		default:
 			break;

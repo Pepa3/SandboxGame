@@ -26,6 +26,8 @@ constexpr int UPDATE_RADIUS = 3;
 constexpr int tileSize = 32;
 constexpr int chSize = 50;
 constexpr int dirtHeight = 5;
+constexpr int lightFalloff = 2;
+constexpr int caveCount = 3;
 constexpr size_t INVENTORY_SIZE = 5;
 constexpr size_t PLACE_MILLIS = 250;
 constexpr size_t tileMapWidth = 10, tileMapHeight = 10;
@@ -82,19 +84,34 @@ class Player;
 
 class Block{
 public:
-	Block(Tile t1, Tile bgnd, float fl = 0):t(t1),fluid(fl),bg(bgnd){}
+	Block(Tile t1, Tile bgnd, float fl = 0, uint8_t lght = 0):t(t1),fluid(fl),bg(bgnd),light(lght){}
 	Block(){}
 	Tile t = Tile::UNKNOWN;//Foreground tile
 	Tile bg = Tile::UNKNOWN;//Background tile
 	float fluid = 0;
+	char light = 0;//0-127 128-255
+	bool lightSource = false;
+	bool skyView = false;
 };
 
 class Map{
 public:
+	class Chunk{
+	public:
+		Chunk(short x, short y);
+		Chunk() :x(0), y(0){}
+		void generate();
+		void generateTree(int x, int y);
+		void update();
+		void updateLight(int x, int y, bool genStep);
+		short x, y;
+		Block data[chSize * chSize];
+	};
 	Map();
 	~Map();
 	void generateWorld();
 	void update();
+	void updateLight(int x, int y);
 	void render();
 	bool save(const std::string &file)const;
 	bool load(const std::string& file);
@@ -108,16 +125,7 @@ public:
 	inline float posX(int x)const;
 	inline float posY(int y)const;
 	inline Block& world(int x, int y);
-	class Chunk{
-	public:
-		Chunk(short x, short y);
-		Chunk() :x(0), y(0){}
-		void generate();
-		void generateTree(int x, int y);
-		void update();
-		short x, y;
-		Block data[chSize * chSize];
-	};
+	Chunk* chunkAt(int x, int y);
 	
 private:
 	Player* player;
@@ -131,8 +139,6 @@ public:
 	void render();
 	void update();
 	bool addInventory(Block b);
-	//void save(std::ofstream& out)const;
-	//void load(std::ifstream& in);
 private:
 	float x, y;
 	float yVel=0.f;
@@ -167,7 +173,9 @@ GLOBALI(int breakX,0)\
 GLOBALI(int breakY,0)\
 GLOBAL(Map* map)\
 GLOBALI(Block nullBlock, Block(Tile::UNKNOWN,Tile::UNKNOWN))\
-GLOBALI(bool overlay_fluid, false)\
+GLOBALI(bool overlayFluid, false)\
+GLOBALI(bool overlayLight, false)\
+GLOBALI(bool debugMode, true)\
 
 #ifdef HELPER_INIT
 # define GLOBAL(what) what;

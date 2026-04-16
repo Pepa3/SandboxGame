@@ -27,7 +27,6 @@ void Player::update(){//TODO: ugly, it still does not work ideally, but it works
 
 	float mox, moy;
 	int button = SDL_GetMouseState(&mox, &moy);
-	//TODO: make blocks have durability
 	int tx = map->tPosX((int) mox);
 	int ty = map->tPosY((int) moy);
 	if(breakX != tx || breakY != ty){
@@ -42,19 +41,21 @@ void Player::update(){//TODO: ugly, it still does not work ideally, but it works
 				if(map->place(tx, ty, inventory[selectedSlot].type)){
 					lastPlaceTicks = SDL_GetTicks();
 					inventory[selectedSlot].count--;
+					map->updateLight(tx, ty);
 				}
-			} else{//TODO: DEBUG ONLY
-				map->world(tx, ty).fluid = 1;
+			} else if(debugMode){
+				map->world(tx, ty).lightSource = !map->world(tx, ty).lightSource;
 			}
 		}
 	} else if(button & SDL_BUTTON_RMASK){
 		Block& b = map->destroy(tx, ty);
 		if(b.t != Tile::UNKNOWN){
 			breakDurability++;
-			if(true /*breakDurability >= breakMaxDurability*/){//TODO: DEBUG ONLY
+			if(debugMode || breakDurability >= breakMaxDurability){
 				breakDurability = 0;
 				if(addInventory(b)){
 					b.t = Tile::AIR;
+					map->updateLight(tx, ty);
 				}
 			}
 		}
@@ -142,8 +143,8 @@ void Player::render(){
 		if(inventory[i].type != Tile::UNKNOWN && inventory[i].count != 0){
 			const SDL_FRect itemRect = {wWidth / 2 - (INVENTORY_SIZE / 2.f - i) * tileSize * 3.f + tileSize / 2,wHeight - tileSize * 3.f + tileSize / 2, (float)tileSize, (float) tileSize};
 			SDL_RenderTexture(renderer, tiles[inventory[i].type], &tileFRect, &itemRect);
-			char string[3];
-			SDL_snprintf(string, sizeof(string), "%d", inventory[i].count);
+			char string[4];
+			SDL_snprintf(string, sizeof(string), "%d", inventory[i].count);//TODO: max stack size
 			TTF_SetTextString(text, string, 0);
 			int w = 0;
 			TTF_MeasureString(font, string, 2, 0, &w, nullptr);
