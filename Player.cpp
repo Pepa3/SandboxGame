@@ -13,7 +13,7 @@ bool Player::addInventory(Block b){
 		}
 	}
 	for(size_t i = 0; i < INVENTORY_SIZE; i++){
-		if(inventory[i].type == Tile::UNKNOWN){
+		if(inventory[i].type == Tile::UNKNOWN || inventory[i].count == 0){
 			inventory[i] = {b.t,1};
 			return true;
 		}
@@ -42,9 +42,11 @@ void Player::update(){//TODO: ugly, it still does not work ideally, but it works
 					lastPlaceTicks = SDL_GetTicks();
 					inventory[selectedSlot].count--;
 					map->updateLight(tx, ty);
+					map->updateLight(tx, ty+1);
 				}
 			} else if(debugMode){
 				map->world(tx, ty).lightSource = !map->world(tx, ty).lightSource;
+				map->updateLight(tx, ty);
 			}
 		}
 	} else if(button & SDL_BUTTON_RMASK){
@@ -56,6 +58,7 @@ void Player::update(){//TODO: ugly, it still does not work ideally, but it works
 				if(addInventory(b)){
 					b.t = Tile::AIR;
 					map->updateLight(tx, ty);
+					map->updateLight(tx, ty+1);
 				}
 			}
 		}

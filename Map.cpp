@@ -44,6 +44,7 @@ Map::Chunk* Map::chunkAt(int x, int y){
 		ch = new Chunk(cx, cy);
 		ch->generate();
 		chunks.insert({key, ch});
+		countChunkGen++;
 		(void) _;
 	}
 	return ch;
@@ -105,12 +106,12 @@ void Map::generateWorld(){
 			length += 1;
 		}
 	}
-	for(int i = -3; i <= 3; i++){
-		for(int j = -3; j <= 3; j++){
+	for(int i = -2; i <= 2; i++){
+		for(int j = -2; j <= 2; j++){
 			Chunk* ch = chunkAt(i*chSize, j*chSize);
 			for(int x = 0; x < chSize; x++){
 				for(int y = 0; y < chSize; y++){
-					ch->updateLight(x, y, true);
+					ch->updateLight(x, y, false);
 				}
 			}
 		}
@@ -150,6 +151,11 @@ void Map::Chunk::generate(){
 	}
 	short treeY = (short) floorf(treeHeight / (float) chSize);
 	if(treeY==y&&treeHeight<= height)generateTree(chSize/2, treeHeight-gy);
+	for(int x = 0; x < chSize; x++){
+		for(int y = 0; y < chSize; y++){
+			updateLight(x, y, true);
+		}
+	}
 }
 
 void Map::Chunk::generateTree(int tx, int ty){
@@ -255,30 +261,40 @@ void Map::Chunk::update(){
 }
 
 void Map::updateLight(int x, int y){
-	short cx = (short) floorf(x / (float) chSize);
-	short cy = (short) floorf(y / (float) chSize);
-	Chunk* ch = chunkAt(x, y);
-	ch->updateLight(x - cx * chSize, y - cy * chSize, false);
+	std::pair<int,int> p = {x,y};
+	if(std::find(lightUpdateQueue.begin(), lightUpdateQueue.end(), p) == lightUpdateQueue.end()){//TODO: slow
+		lightUpdateQueue.push_back(p);
+	}
 }
 
 void Map::Chunk::updateLight(int i, int j, bool genStep){
+	if(i < 0 || j < 0 || i >= chSize || j >= chSize){
+		std::cerr << "Bad position in Map::Chunk::updateLight()!!!" << std::endl;
+		return;
+	}
 	Block& c = data[i + j * chSize];
 	if(c.lightSource){
 		c.light = 127;
+		if(!genStep){
+			map->updateLight(x * chSize + i, y * chSize + j - 1);
+			map->updateLight(x * chSize + i, y * chSize + j + 1);
+			map->updateLight(x * chSize + i - 1, y * chSize + j);
+			map->updateLight(x * chSize + i + 1, y * chSize + j);
+		}
 		return;
 	}
-	const char ll = (i > 0)
-		? data[i - 1 + j * chSize].light
-		: (genStep ? 0 : map->world(x * chSize + i - 1, y * chSize + j).light);
-	const char rl = (i < chSize - 1)
-		? data[i + 1 + j * chSize].light
-		: (genStep ? 0 : map->world(x * chSize + i + 1, y * chSize + j).light);
+	const Block l = (i > 0)
+		? data[i - 1 + j * chSize]
+		: (genStep ? Block() : map->world(x * chSize + i - 1, y * chSize + j));
+	const Block r = (i < chSize - 1)
+		? data[i + 1 + j * chSize]
+		: (genStep ? Block() : map->world(x * chSize + i + 1, y * chSize + j));
 	const Block u = (j > 0)
 		? data[i + (j - 1) * chSize]
 		: (genStep ? Block() : map->world(x * chSize + i, y * chSize + j - 1));
-	const char dl = (j < chSize - 1)
-		? data[i + (j + 1) * chSize].light
-		: (genStep ? 0 : map->world(x * chSize + i, y * chSize + j + 1).light);
+	const Block d = (j < chSize - 1)
+		? data[i + (j + 1) * chSize]
+		: (genStep ? Block() : map->world(x * chSize + i, y * chSize + j + 1));
 	if(!(genStep && j==0) && c.t==Tile::AIR){
 		c.skyView = u.skyView;
 	}
@@ -287,18 +303,58 @@ void Map::Chunk::updateLight(int i, int j, bool genStep){
 		return;
 	}
 	if(!::isSolid(c.t)){//Transparent
-		char lgt1 = (char) fmax(dl - lightFalloff, u.light - lightFalloff);
-		char lgt2 = (char) fmax(ll - lightFalloff, rl - lightFalloff);
-		char lgt = (char) fmax(lgt1, lgt2);
-		c.light = (char) fmax(0, lgt);
+		char lgt1 = (char) fmax(d.light - lightFalloff, u.light - lightFalloff);
+		char lgt2 = (char) fmax(l.light - lightFalloff, r.light - lightFalloff);
+		char lgt = (char) fmax(0,fmax(lgt1, lgt2));
+		if(!genStep && lgt != c.light){
+			map->updateLight(x * chSize + i, y * chSize + j - 1);
+			map->updateLight(x * chSize + i, y * chSize + j + 1);
+			map->updateLight(x * chSize + i - 1, y * chSize + j);
+			map->updateLight(x * chSize + i + 1, y * chSize + j);
+			c.light = lgt;
+			return;//skip neighbor check
+		}
+		c.light = lgt;
 	} else{//Solid
-		char lgt1 = (char) fmax(dl - lightFalloff*4, u.light - lightFalloff*4);
-		char lgt2 = (char) fmax(ll - lightFalloff*4, rl - lightFalloff*4);
-		char lgt = (char) fmax(lgt1, lgt2);
-		c.light = (char) fmax(0, lgt);
+		char lgt1 = (char) fmax(d.light - lightFalloff*4, u.light - lightFalloff*4);
+		char lgt2 = (char) fmax(l.light - lightFalloff*4, r.light - lightFalloff*4);
+		char lgt = (char) fmax(0, fmax(lgt1, lgt2));
+		if(!genStep && lgt != c.light){
+			map->updateLight(x * chSize + i, y * chSize + j - 1);
+			map->updateLight(x * chSize + i, y * chSize + j + 1);
+			map->updateLight(x * chSize + i - 1, y * chSize + j);
+			map->updateLight(x * chSize + i + 1, y * chSize + j);
+			c.light = lgt;
+			return;//skip neighbor check
+		}
+		c.light = lgt;
 	}
-	char ldu = (char)fabs(c.light - u.light);
-	//TODO: cascading updates
+	if(!genStep){
+		char ldu = (char) fabs(c.light - u.light);
+		if(::isSolid(u.t)){
+			if(ldu > lightFalloff * 4)map->updateLight(x * chSize + i, y * chSize + j - 1);
+		} else{
+			if(ldu > lightFalloff)map->updateLight(x * chSize + i, y * chSize + j - 1);
+		}
+		char ldd = (char) fabs(c.light - d.light);
+		if(::isSolid(d.t)){
+			if(ldd > lightFalloff * 4)map->updateLight(x * chSize + i, y * chSize + j + 1);
+		} else{
+			if(ldd > lightFalloff)map->updateLight(x * chSize + i, y * chSize + j + 1);
+		}
+		char ldl = (char) fabs(c.light - l.light);
+		if(::isSolid(l.t)){
+			if(ldl > lightFalloff * 4)map->updateLight(x * chSize + i - 1, y * chSize + j);
+		} else{
+			if(ldl > lightFalloff)map->updateLight(x * chSize + i - 1, y * chSize + j);
+		}
+		char ldr = (char) fabs(c.light - r.light);
+		if(::isSolid(r.t)){
+			if(ldr > lightFalloff * 4)map->updateLight(x * chSize + i + 1, y * chSize + j);
+		} else{
+			if(ldr > lightFalloff)map->updateLight(x * chSize + i + 1, y * chSize + j);
+		}
+	}
 }
 
 void Map::handleKeyDown(char key){
@@ -327,6 +383,7 @@ bool Map::place(int x, int y, Tile t){
 		}
 	}
 	b.t = t;
+	b.skyView = false;
 	b.fluid = 0;
 	return true;
 }
@@ -340,22 +397,23 @@ Block& Map::destroy(int x, int y){//TODO: replace with a better system
 
 
 void Map::update(){
-	short cx = (short) floorf(player->x / chSize / tileSize);
-	short cy = (short) floorf(player->y / chSize / tileSize);
+	countLightUpdates = lightUpdateQueue.size();
+	short px = (short) floorf(player->x / tileSize);
+	short py = (short) floorf(player->y / tileSize);
 	for(int i = -UPDATE_RADIUS; i <= UPDATE_RADIUS; i++){
 		for(int j = -UPDATE_RADIUS; j <= UPDATE_RADIUS; j++){
-			uint32_t key = KEY(cx+i, cy+j);
-			Chunk* ch;
-			try{
-				ch = chunks.at(key);
-			} catch(const std::out_of_range& _){
-				ch = new Chunk(cx+i, cy+j);
-				ch->generate();
-				chunks.insert({key, ch});
-				(void) _;
-			}
+			Chunk* ch = chunkAt(px+i*chSize,py+j*chSize);
 			ch->update();
 		}
+	}
+	int count = 0;
+	while(!lightUpdateQueue.empty() && count++ < maxlightUpdateCount){
+		const auto [x,y] = lightUpdateQueue.front();
+		lightUpdateQueue.pop_front();
+		Chunk* ch = chunkAt(x,y);
+		short cx = (short) floorf((float) x / chSize);
+		short cy = (short) floorf((float) y / chSize);
+		ch->updateLight(x-cx*chSize,y-cy*chSize,false);
 	}
 	player->update();
 }
@@ -399,9 +457,11 @@ void Map::render(){
 				TTF_SetTextString(text, string, sizeof(string));
 				TTF_DrawRendererText(text, dest.x, dest.y + tileSize / 2);
 			}
-			const SDL_FRect shadowRect = {posX(x),posY(y),(float) tileSize,(float) tileSize};
-			SDL_SetRenderDrawColor(renderer, 0, 0, 0, (127-b.light)*2);
-			SDL_RenderFillRect(renderer, &shadowRect);
+			//if(b.light != 127){
+				const SDL_FRect shadowRect = {posX(x),posY(y),(float) tileSize,(float) tileSize};
+				SDL_SetRenderDrawColor(renderer, 0, 0, 0, (127 - b.light) * 2);
+				SDL_RenderFillRect(renderer, &shadowRect);
+			//}
 		}
 	}
 	float mx, my;

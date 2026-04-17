@@ -84,7 +84,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv){
 	SDL_DestroySurface(tilemap);
 
 	map = new Map();
-	//if(!map->load("test1.save"))
+	if(!map->load("test1.save"))
 	map->generateWorld();
 
 	return SDL_APP_CONTINUE;
@@ -105,10 +105,10 @@ SDL_AppResult SDL_AppIterate(void* appstate){
 	SDL_RenderClear(renderer);
 
 	map->render();
-
-	static char string[6];
+	//"\0" "FPS:" "60.00" " LU:" "9999" " CG:" "999"
+	static char string[1+4+5+4+4+4+3];
 	if(lastFPSTime + 1000 <= SDL_GetTicks()){
-		SDL_snprintf(string, sizeof(string), "%.2f", frames/(float)(SDL_GetTicks()-lastFPSTime)*1000.f);
+		SDL_snprintf(string, sizeof(string), "FPS:%.2f LU:%d CG:%d", frames/(float)(SDL_GetTicks()-lastFPSTime)*1000.f,countLightUpdates,countChunkGen);
 		lastFPSTime = SDL_GetTicks();
 		frames = 0;
 	}

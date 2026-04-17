@@ -6,6 +6,7 @@
 #include <SDL3_image/SDL_image.h>
 #include "PerlinNoise.hpp"
 #include <unordered_map>
+#include <deque>
 
 /*
 * -
@@ -28,6 +29,7 @@ constexpr int chSize = 50;
 constexpr int dirtHeight = 5;
 constexpr int lightFalloff = 2;
 constexpr int caveCount = 3;
+constexpr int maxlightUpdateCount = 100;
 constexpr size_t INVENTORY_SIZE = 5;
 constexpr size_t PLACE_MILLIS = 250;
 constexpr size_t tileMapWidth = 10, tileMapHeight = 10;
@@ -126,10 +128,11 @@ public:
 	inline float posY(int y)const;
 	inline Block& world(int x, int y);
 	Chunk* chunkAt(int x, int y);
-	
+
 private:
 	Player* player;
 	std::unordered_map<uint32_t, Chunk*> chunks;
+	std::deque<std::pair<int, int>> lightUpdateQueue;
 };
 
 class Player{
@@ -176,6 +179,8 @@ GLOBALI(Block nullBlock, Block(Tile::UNKNOWN,Tile::UNKNOWN))\
 GLOBALI(bool overlayFluid, false)\
 GLOBALI(bool overlayLight, false)\
 GLOBALI(bool debugMode, true)\
+GLOBAL(int countLightUpdates)\
+GLOBAL(int countChunkGen)\
 
 #ifdef HELPER_INIT
 # define GLOBAL(what) what;
