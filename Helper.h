@@ -28,8 +28,8 @@ constexpr int tileSize = 32;
 constexpr int chSize = 50;
 constexpr int dirtHeight = 5;
 constexpr int lightFalloff = 2;
-constexpr int caveCount = 3;
-constexpr int maxlightUpdateCount = 100;
+constexpr int caveCount = 7;
+constexpr int maxlightUpdateCount = 500;
 constexpr size_t INVENTORY_SIZE = 5;
 constexpr size_t PLACE_MILLIS = 250;
 constexpr size_t tileMapWidth = 10, tileMapHeight = 10;
@@ -94,6 +94,7 @@ public:
 	char light = 0;//0-127 128-255
 	bool lightSource = false;
 	bool skyView = false;
+	bool hasScheduledLightUpdate = false;
 };
 
 class Map{
@@ -113,7 +114,7 @@ public:
 	~Map();
 	void generateWorld();
 	void update();
-	void updateLight(int x, int y);
+	void updateLight(int x, int y, bool genStep=false);
 	void render();
 	bool save(const std::string &file)const;
 	bool load(const std::string& file);
@@ -127,12 +128,13 @@ public:
 	inline float posX(int x)const;
 	inline float posY(int y)const;
 	inline Block& world(int x, int y);
-	Chunk* chunkAt(int x, int y);
+	inline Chunk* chunkAt(int x, int y);
+	inline bool chunkExists(int x, int y)const;
 
 private:
 	Player* player;
 	std::unordered_map<uint32_t, Chunk*> chunks;
-	std::deque<std::pair<int, int>> lightUpdateQueue;
+	std::deque<std::tuple<int, int, bool>> lightUpdateQueue;
 };
 
 class Player{

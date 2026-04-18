@@ -33,7 +33,7 @@ int Map::tPosY(int y)const{
 }
 #define KEY(high,low)(((uint32_t)(high) << 16) | ((uint32_t) (low))&0xFFFF)
 
-Map::Chunk* Map::chunkAt(int x, int y){
+inline Map::Chunk* Map::chunkAt(int x, int y){
 	short cx = (short) floorf(x / (float) chSize);
 	short cy = (short) floorf(y / (float) chSize);
 	uint32_t key = KEY(cx, cy);
@@ -48,6 +48,11 @@ Map::Chunk* Map::chunkAt(int x, int y){
 		(void) _;
 	}
 	return ch;
+}
+
+inline bool Map::chunkExists(int x, int y)const{
+	uint32_t key = KEY(x, y);
+	return chunks.contains(key);
 }
 
 inline Block& Map::world(int x, int y){
@@ -71,7 +76,7 @@ void Map::generateWorld(){
 	}
 	for(int idx = 0; idx <= caveCount; idx++){
 		double wx = 0;
-		double wy = (int) (perlin.noise2D(0, 1) * TERRAIN_STEEPNESS) + 100+idx*40;
+		double wy = (int) (perlin.noise2D(0, 1) * TERRAIN_STEEPNESS) + 100 + idx * 40;
 		double seed = wy;
 		int length = 0;
 		double dx = 0, dy = 0;
@@ -109,6 +114,11 @@ void Map::generateWorld(){
 	for(int i = -2; i <= 2; i++){
 		for(int j = -2; j <= 2; j++){
 			Chunk* ch = chunkAt(i*chSize, j*chSize);
+			for(int x = chSize - 1; x >= 0; x--){
+				for(int y = chSize - 1; y >= 0; y--){
+					ch->updateLight(x, y, false);
+				}
+			}
 			for(int x = 0; x < chSize; x++){
 				for(int y = 0; y < chSize; y++){
 					ch->updateLight(x, y, false);
@@ -116,6 +126,17 @@ void Map::generateWorld(){
 			}
 		}
 	}
+
+	int count = 0;
+	while(!lightUpdateQueue.empty() && count++ < 100000){
+		const auto [x, y, g] = lightUpdateQueue.front();
+		lightUpdateQueue.pop_front();
+		Chunk* ch = chunkAt(x, y);
+		short cx = (short) floorf((float) x / chSize);
+		short cy = (short) floorf((float) y / chSize);
+		ch->updateLight(x - cx * chSize, y - cy * chSize, g);
+	}
+	std::cout << "World generation updated light " << count << " times.\n" << std::endl;
 }
 
 Map::Chunk::Chunk(short x, short y) :x(x), y(y) {
@@ -151,11 +172,18 @@ void Map::Chunk::generate(){
 	}
 	short treeY = (short) floorf(treeHeight / (float) chSize);
 	if(treeY==y&&treeHeight<= height)generateTree(chSize/2, treeHeight-gy);
+	int luc = countLightUpdates;
 	for(int x = 0; x < chSize; x++){
 		for(int y = 0; y < chSize; y++){
 			updateLight(x, y, true);
 		}
 	}
+	for(int x = chSize - 1; x >= 0; x--){
+		for(int y = chSize - 1; y >= 0; y--){
+			updateLight(x, y, true);
+		}
+	}
+	std::cout << "Light updates scheduled by chunk generation: " << (countLightUpdates - luc) << std::endl;
 }
 
 void Map::Chunk::generateTree(int tx, int ty){
@@ -201,8 +229,9 @@ void Map::Chunk::update(){
 					: map->world(x * chSize + i, y * chSize + j + 1);
 				if(under.t == Tile::AIR){
 					Block tmp = b;
-					b = Block(under.t, b.bg, under.fluid, b.light);
-					under = Block(tmp.t, under.bg, tmp.fluid, under.light);
+					b = Block(under.t, b.bg, under.fluid, 0);
+					under = Block(tmp.t, under.bg, tmp.fluid, tmp.light);
+					map->updateLight(x * chSize + i, y * chSize + j, false);
 				}
 			}
 			float& fl1 = b.fluid;
@@ -260,10 +289,13 @@ void Map::Chunk::update(){
 	}
 }
 
-void Map::updateLight(int x, int y){
-	std::pair<int,int> p = {x,y};
-	if(std::find(lightUpdateQueue.begin(), lightUpdateQueue.end(), p) == lightUpdateQueue.end()){//TODO: slow
+void Map::updateLight(int x, int y, bool genStep){
+	std::tuple<int,int,bool> p = {x,y, genStep};
+	Block& b = world(x, y);
+	if(!b.hasScheduledLightUpdate){
 		lightUpdateQueue.push_back(p);
+		countLightUpdates = lightUpdateQueue.size();
+		b.hasScheduledLightUpdate = true;
 	}
 }
 
@@ -272,9 +304,12 @@ void Map::Chunk::updateLight(int i, int j, bool genStep){
 		std::cerr << "Bad position in Map::Chunk::updateLight()!!!" << std::endl;
 		return;
 	}
+	bool lightChanged = false;
 	Block& c = data[i + j * chSize];
+	c.hasScheduledLightUpdate = false;
 	if(c.lightSource){
 		c.light = 127;
+		lightChanged = true;
 		if(!genStep){
 			map->updateLight(x * chSize + i, y * chSize + j - 1);
 			map->updateLight(x * chSize + i, y * chSize + j + 1);
@@ -285,51 +320,49 @@ void Map::Chunk::updateLight(int i, int j, bool genStep){
 	}
 	const Block l = (i > 0)
 		? data[i - 1 + j * chSize]
-		: (genStep ? Block() : map->world(x * chSize + i - 1, y * chSize + j));
+		: (genStep && !map->chunkExists(x - 1, y) ? Block() : map->world(x * chSize + i - 1, y * chSize + j));
 	const Block r = (i < chSize - 1)
 		? data[i + 1 + j * chSize]
-		: (genStep ? Block() : map->world(x * chSize + i + 1, y * chSize + j));
+		: (genStep && !map->chunkExists(x + 1, y) ? Block() : map->world(x * chSize + i + 1, y * chSize + j));
 	const Block u = (j > 0)
 		? data[i + (j - 1) * chSize]
-		: (genStep ? Block() : map->world(x * chSize + i, y * chSize + j - 1));
+		: (genStep && !map->chunkExists(x, y - 1) ? Block() : map->world(x * chSize + i, y * chSize + j - 1));
 	const Block d = (j < chSize - 1)
 		? data[i + (j + 1) * chSize]
-		: (genStep ? Block() : map->world(x * chSize + i, y * chSize + j + 1));
+		: (genStep && !map->chunkExists(x, y + 1) ? Block() : map->world(x * chSize + i, y * chSize + j + 1));
 	if(!(genStep && j==0) && c.t==Tile::AIR){
 		c.skyView = u.skyView;
 	}
+	char lgt = 0;
 	if(c.skyView){
-		c.light = 127;
-		return;
-	}
-	if(!::isSolid(c.t)){//Transparent
+		lgt = 127;
+	}else if(!::isSolid(c.t)){//Transparent
 		char lgt1 = (char) fmax(d.light - lightFalloff, u.light - lightFalloff);
 		char lgt2 = (char) fmax(l.light - lightFalloff, r.light - lightFalloff);
-		char lgt = (char) fmax(0,fmax(lgt1, lgt2));
-		if(!genStep && lgt != c.light){
-			map->updateLight(x * chSize + i, y * chSize + j - 1);
-			map->updateLight(x * chSize + i, y * chSize + j + 1);
-			map->updateLight(x * chSize + i - 1, y * chSize + j);
-			map->updateLight(x * chSize + i + 1, y * chSize + j);
-			c.light = lgt;
-			return;//skip neighbor check
-		}
-		c.light = lgt;
+		lgt = (char) fmax(0, fmax(lgt1, lgt2));
 	} else{//Solid
 		char lgt1 = (char) fmax(d.light - lightFalloff*4, u.light - lightFalloff*4);
 		char lgt2 = (char) fmax(l.light - lightFalloff*4, r.light - lightFalloff*4);
-		char lgt = (char) fmax(0, fmax(lgt1, lgt2));
-		if(!genStep && lgt != c.light){
-			map->updateLight(x * chSize + i, y * chSize + j - 1);
-			map->updateLight(x * chSize + i, y * chSize + j + 1);
-			map->updateLight(x * chSize + i - 1, y * chSize + j);
-			map->updateLight(x * chSize + i + 1, y * chSize + j);
-			c.light = lgt;
-			return;//skip neighbor check
-		}
-		c.light = lgt;
+		lgt = (char) fmax(0, fmax(lgt1, lgt2));
 	}
-	if(!genStep){
+	if(lgt!=c.light)lightChanged = true;
+	c.light = lgt;
+
+	if(!genStep && lightChanged){
+		map->updateLight(x * chSize + i, y * chSize + j - 1);
+		map->updateLight(x * chSize + i, y * chSize + j + 1);
+		map->updateLight(x * chSize + i - 1, y * chSize + j);
+		map->updateLight(x * chSize + i + 1, y * chSize + j);
+		return;//skip neighbor check
+	} else if(genStep && lightChanged){	
+		//schedule light updates in generated neighboring chunk borders, to process light from this chunk
+		if(i == 0 && map->chunkExists(x - 1, y)) map->updateLight(x * chSize + i - 1, y * chSize + j, false);
+		if(i == chSize - 1 && map->chunkExists(x + 1, y)) map->updateLight(x * chSize + i + 1, y * chSize + j, false);
+		if(j == 0 && map->chunkExists(x, y - 1)) map->updateLight(x * chSize + i, y * chSize + j - 1, false);
+		if(j == chSize - 1 && map->chunkExists(x, y + 1)) map->updateLight(x * chSize + i, y * chSize + j + 1, false);
+	}
+
+	if(!genStep && !lightChanged){
 		char ldu = (char) fabs(c.light - u.light);
 		if(::isSolid(u.t)){
 			if(ldu > lightFalloff * 4)map->updateLight(x * chSize + i, y * chSize + j - 1);
@@ -408,12 +441,12 @@ void Map::update(){
 	}
 	int count = 0;
 	while(!lightUpdateQueue.empty() && count++ < maxlightUpdateCount){
-		const auto [x,y] = lightUpdateQueue.front();
+		const auto [x,y,g] = lightUpdateQueue.front();
 		lightUpdateQueue.pop_front();
 		Chunk* ch = chunkAt(x,y);
 		short cx = (short) floorf((float) x / chSize);
 		short cy = (short) floorf((float) y / chSize);
-		ch->updateLight(x-cx*chSize,y-cy*chSize,false);
+		ch->updateLight(x-cx*chSize,y-cy*chSize,g);
 	}
 	player->update();
 }
@@ -473,7 +506,7 @@ void Map::render(){
 	SDL_SetRenderDrawColor(renderer,0,0,0,0xff);
 	SDL_RenderRect(renderer, &cursorRect);
 	if(debugMode){
-		Chunk* ch = chunkAt(player->x / tileSize, player->y / tileSize);
+		Chunk* ch = chunkAt((int)player->x / tileSize, (int)player->y / tileSize);
 		const SDL_FRect chunkRect = {posX(ch->x*chSize), posY(ch->y*chSize),chSize*tileSize,chSize*tileSize};
 		SDL_SetRenderDrawColor(renderer, 0, 0, 0xff, 0xff);
 		SDL_RenderRect(renderer, &chunkRect);
