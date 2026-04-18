@@ -128,7 +128,7 @@ void Map::generateWorld(){
 	}
 
 	int count = 0;
-	while(!lightUpdateQueue.empty() && count++ < 100000){
+	while(!lightUpdateQueue.empty() && count++ < 1000000){
 		const auto [x, y, g] = lightUpdateQueue.front();
 		lightUpdateQueue.pop_front();
 		Chunk* ch = chunkAt(x, y);
@@ -150,6 +150,7 @@ void Map::Chunk::generate(){
 	int gx = x * chSize;
 	int gy = y * chSize;
 	constexpr int height = 100;
+	srand(seed*seed+x+y*seed);
 	int treeHeight = (int) (perlin.noise2D((gx + chSize / 2) * 0.01, 1) * TERRAIN_STEEPNESS) + height;
 	for(int i = 0; i < chSize; i++){
 		const int n1 = (int)(perlin.noise2D((gx+i) * 0.01, 1) * TERRAIN_STEEPNESS) + height;
@@ -157,7 +158,7 @@ void Map::Chunk::generate(){
 			if(j + gy < n1){
 				Block b = Block(Tile::AIR,Tile::AIR, 0, 127);
 				b.skyView = true;
-				if(gy+j> height)b.fluid = 1;
+				if(gy+j> height)b.fluid = 2;
 				data[i + j * chSize] = b;
 			}
 			else if(j + gy == n1){
@@ -167,12 +168,19 @@ void Map::Chunk::generate(){
 					data[i + j * chSize] = Block(Tile::SAND,Tile::AIR, 0);
 			}
 			else if(j+gy<n1+dirtHeight)data[i + j * chSize] = Block(Tile::DIRT,Tile::DIRT, 0);
-			else data[i + j * chSize] = Block(Tile::STONE, Tile::STONE, 0);
+			else{
+				bool ore = (rand() % 10000) > 9990;
+				if(ore){
+					data[i + j * chSize] = Block(Tile::GLOW, Tile::STONE, 0);
+					data[i + j * chSize].lightSource = true;
+				} else{
+					data[i + j * chSize] = Block(Tile::STONE, Tile::STONE, 0);
+				}
+			}
 		}
 	}
 	short treeY = (short) floorf(treeHeight / (float) chSize);
 	if(treeY==y&&treeHeight<= height)generateTree(chSize/2, treeHeight-gy);
-	int luc = countLightUpdates;
 	for(int x = 0; x < chSize; x++){
 		for(int y = 0; y < chSize; y++){
 			updateLight(x, y, true);
@@ -183,7 +191,6 @@ void Map::Chunk::generate(){
 			updateLight(x, y, true);
 		}
 	}
-	std::cout << "Light updates scheduled by chunk generation: " << (countLightUpdates - luc) << std::endl;
 }
 
 void Map::Chunk::generateTree(int tx, int ty){
