@@ -307,17 +307,6 @@ void Map::Chunk::updateLight(int i, int j, bool genStep){
 	bool lightChanged = false;
 	Block& c = data[i + j * chSize];
 	c.hasScheduledLightUpdate = false;
-	if(c.lightSource){
-		c.light = 127;
-		lightChanged = true;
-		if(!genStep){
-			map->updateLight(x * chSize + i, y * chSize + j - 1);
-			map->updateLight(x * chSize + i, y * chSize + j + 1);
-			map->updateLight(x * chSize + i - 1, y * chSize + j);
-			map->updateLight(x * chSize + i + 1, y * chSize + j);
-		}
-		return;
-	}
 	const Block l = (i > 0)
 		? data[i - 1 + j * chSize]
 		: (genStep && !map->chunkExists(x - 1, y) ? Block() : map->world(x * chSize + i - 1, y * chSize + j));
@@ -334,7 +323,7 @@ void Map::Chunk::updateLight(int i, int j, bool genStep){
 		c.skyView = u.skyView;
 	}
 	char lgt = 0;
-	if(c.skyView){
+	if(c.skyView || c.lightSource){
 		lgt = 127;
 	}else if(!::isSolid(c.t)){//Transparent
 		char lgt1 = (char) fmax(d.light - lightFalloff, u.light - lightFalloff);
@@ -491,7 +480,7 @@ void Map::render(){
 				TTF_DrawRendererText(text, dest.x, dest.y + tileSize / 2);
 			}
 			//if(b.light != 127){
-				const SDL_FRect shadowRect = {posX(x),posY(y),(float) tileSize,(float) tileSize};
+				const SDL_FRect shadowRect = {posX(x), posY(y), (float) tileSize, (float) tileSize};
 				SDL_SetRenderDrawColor(renderer, 0, 0, 0, (127 - b.light) * 2);
 				SDL_RenderFillRect(renderer, &shadowRect);
 			//}
