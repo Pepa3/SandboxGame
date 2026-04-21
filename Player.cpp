@@ -1,9 +1,7 @@
 #include "Helper.h"
 #include <iostream>
 
-Player::Player(float x1, float y1) :x(x1),y(y1){
-
-}
+Player::Player(float x1, float y1) :x(x1),y(y1){}
 
 bool Player::addInventory(Block b){
 	for(size_t i = 0; i < INVENTORY_SIZE; i++){
@@ -42,7 +40,6 @@ void Player::update(){//TODO: ugly, it still does not work ideally, but it works
 					lastPlaceTicks = SDL_GetTicks();
 					inventory[selectedSlot].count--;
 					map->updateLight(tx, ty);
-					map->updateLight(tx, ty+1);
 				}
 			} else if(debugMode){
 				map->world(tx, ty).lightSource = !map->world(tx, ty).lightSource;
@@ -50,15 +47,14 @@ void Player::update(){//TODO: ugly, it still does not work ideally, but it works
 			}
 		}
 	} else if(button & SDL_BUTTON_RMASK){
-		Block& b = map->destroy(tx, ty);
-		if(b.t != Tile::UNKNOWN){
+		Block& b = map->world(tx, ty);
+		if(isSolid(b.t)){
 			breakDurability++;
 			if(debugMode || breakDurability >= breakMaxDurability){
 				breakDurability = 0;
-				if(addInventory(b)){
-					b.t = Tile::AIR;
-					map->updateLight(tx, ty);
-					map->updateLight(tx, ty+1);
+				Block d = map->destroy(tx, ty);
+				if(!addInventory(d)){
+					std::cout << "No space in inventory!" << std::endl;
 				}
 			}
 		}

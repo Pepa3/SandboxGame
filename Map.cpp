@@ -198,31 +198,31 @@ void Map::Chunk::generateTree(int tx, int ty){
 	int my = y * chSize;
 	for(int i = 0; i < 6; i++){
 		if(ty - i >= 0){
-			data[tx + (ty - i) * chSize].t = Tile::WOOD;
+			data[tx + (ty - i) * chSize] = Block(Tile::WOOD, Tile::AIR, 0);
 		} else{
-			map->world(mx + tx, my + ty - i).t = Tile::WOOD;
+			map->world(mx + tx, my + ty - i) = Block(Tile::WOOD, Tile::AIR, 0);
 		}
 	}
 	for(int j = 1; j <= 3; j++){
 		for(int i = 2+j; i < 9-j; i++){
 			if(ty - i >= 0){
-				data[-j + tx + (ty - i) * chSize] = Block(Tile::LEAVES, Tile::AIR);
-				data[j + tx + (ty - i) * chSize] = Block(Tile::LEAVES, Tile::AIR);
+				data[-j + tx + (ty - i) * chSize] = Block(Tile::LEAVES, Tile::AIR, 0);
+				data[j + tx + (ty - i) * chSize] = Block(Tile::LEAVES, Tile::AIR, 0);
 			} else{
-				map->world(mx - j + tx, my + ty - i) = Block(Tile::LEAVES, Tile::AIR);
-				map->world(mx + j + tx, my + ty - i) = Block(Tile::LEAVES, Tile::AIR);
+				map->world(mx - j + tx, my + ty - i) = Block(Tile::LEAVES, Tile::AIR, 0);
+				map->world(mx + j + tx, my + ty - i) = Block(Tile::LEAVES, Tile::AIR, 0);
 			}
 		}
 	}
 	if(ty >= 7){
-		data[tx + (ty - 7) * chSize] = Block(Tile::LEAVES, Tile::AIR);
+		data[tx + (ty - 7) * chSize] = Block(Tile::LEAVES, Tile::AIR, 0);
 	} else{
-		map->world(mx + tx, my + ty - 7) = Block(Tile::LEAVES, Tile::AIR);
+		map->world(mx + tx, my + ty - 7) = Block(Tile::LEAVES, Tile::AIR, 0);
 	}
 	if(ty >= 6){
-		data[tx + (ty - 6) * chSize] = Block(Tile::LEAVES, Tile::AIR);
+		data[tx + (ty - 6) * chSize] = Block(Tile::LEAVES, Tile::AIR, 0);
 	} else{
-		map->world(mx + tx, my + ty - 6) = Block(Tile::LEAVES, Tile::AIR);
+		map->world(mx + tx, my + ty - 6) = Block(Tile::LEAVES, Tile::AIR, 0);
 	}
 }
 
@@ -405,7 +405,7 @@ bool Map::place(int x, int y, Tile t){
 	if(::isSolid(b.t)){
 		return false;
 	}
-	if(b.fluid > 0){//TODO:fluid is destroyed here
+	if(b.fluid > 0){//TODO:fluid can be destroyed here
 		Block& up = world(x, y - 1);
 		if(!::isSolid(up.t)){
 			up.fluid = fminf(b.fluid+up.fluid,1);
@@ -417,11 +417,14 @@ bool Map::place(int x, int y, Tile t){
 	return true;
 }
 
-Block& Map::destroy(int x, int y){//TODO: replace with a better system
+Block Map::destroy(int x, int y){
 	Block& b = world(x, y);
 	if(!::isSolid(b.t))return nullBlock;
-	if(b.t == Tile::GRASS)b.t = Tile::DIRT;
-	return b;
+	Block c = b;
+	c.t = destroyResult(c.t);
+	b.t = Tile::AIR;
+	updateLight(x, y);
+	return c;
 }
 
 

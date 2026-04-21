@@ -63,6 +63,16 @@ constexpr bool hasBackground(Tile t){
 		return false;
 	}
 }
+constexpr Tile destroyResult(Tile t){
+	switch(t){
+	case GRASS:
+		return DIRT;
+	case GLOW:
+		return STONE;
+	default:
+		return t;
+	}
+}
 constexpr int durability(Tile t){
 	switch(t){
 	case SAND:
@@ -72,6 +82,7 @@ constexpr int durability(Tile t){
 	case WOOD:
 		return 20;
 	case STONE:
+	case GLOW:
 		return 100;
 	default:
 		return 1;
@@ -86,7 +97,7 @@ class Player;
 
 class Block{
 public:
-	Block(Tile t1, Tile bgnd, float fl = 0, uint8_t lght = 0):t(t1),fluid(fl),bg(bgnd),light(lght){}
+	Block(Tile t1, Tile bgnd, float fl = 0, char lght = 0):t(t1),fluid(fl),bg(bgnd),light(lght){}
 	Block(){}
 	Tile t = Tile::UNKNOWN;//Foreground tile
 	Tile bg = Tile::UNKNOWN;//Background tile
@@ -121,7 +132,7 @@ public:
 	void handleKeyDown(char key);
 	void handleMouseWheel(SDL_MouseWheelEvent event);
 	bool place(int x, int y, Tile t);
-	Block& destroy(int x, int y);
+	Block destroy(int x, int y);
 	bool isSolid(int x, int y);
 	int tPosX(int x)const;
 	int tPosY(int y)const;
