@@ -40,12 +40,11 @@ inline Map::Chunk* Map::chunkAt(int x, int y){
 	Chunk* ch;
 	try{
 		ch = chunks.at(key);
-	} catch(const std::out_of_range& _){
+	} catch(const std::out_of_range&){
 		ch = new Chunk(cx, cy);
 		ch->generate();
 		chunks.insert({key, ch});
 		countChunkGen++;
-		(void) _;
 	}
 	return ch;
 }
@@ -205,7 +204,7 @@ void Map::Chunk::generateTree(int tx, int ty){
 	}
 	for(int j = 1; j <= 3; j++){
 		for(int i = 2+j; i < 9-j; i++){
-			if(ty - i >= 0){
+			if(ty - i >= 0 && tx - j >= 0 && j < chSize){
 				data[-j + tx + (ty - i) * chSize] = Block(Tile::LEAVES, Tile::AIR, 0);
 				data[j + tx + (ty - i) * chSize] = Block(Tile::LEAVES, Tile::AIR, 0);
 			} else{
@@ -460,7 +459,9 @@ void Map::render(){
 	int endY = (int) (cameraY + wHeight / 2) / tileSize+1;
 	for(int x = beginX; x < endX; x++){
 		for(int y = beginY; y < endY; y++){
-			//TODO: SLOW -> looks up chunks every iteration
+			//TODO: looks up chunks every iteration
+			// currently rendering abour one chunk of tiles(2500), spread into max 6 chunks
+			// can't just render all visible chunks, visibility must be handled at tile resolution
 
 			Block& b = world(x, y);
 			const SDL_FRect dest = {posX(x),posY(y),tileSize,tileSize};

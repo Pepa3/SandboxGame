@@ -36,7 +36,7 @@ constexpr size_t tileMapWidth = 10, tileMapHeight = 10;
 constexpr size_t TERRAIN_STEEPNESS = 80;
 constexpr SDL_Rect tileRect = {0,0,tileSize,tileSize};
 constexpr SDL_FRect tileFRect = {0,0,tileSize,tileSize};
-const siv::PerlinNoise::seed_type seed = 19254792u;
+constexpr const siv::PerlinNoise::seed_type seed = 19254792u;
 const siv::PerlinNoise perlin{seed};
 
 /*
@@ -169,7 +169,11 @@ private:
 /*
 * GLOBALS
 */
-
+#ifdef _DEBUG
+#define DEFDEBUGOVERLAY true
+#else
+#define DEFDEBUGOVERLAY false
+#endif
 #define GLOBALS \
 GLOBAL(size_t wWidth)\
 GLOBAL(size_t wHeight)\
@@ -191,13 +195,13 @@ GLOBAL(Map* map)\
 GLOBALI(Block nullBlock, Block(Tile::UNKNOWN,Tile::UNKNOWN))\
 GLOBALI(bool overlayFluid, false)\
 GLOBALI(bool overlayLight, false)\
-GLOBALI(bool debugMode, true)\
+GLOBALI(bool debugMode, DEFDEBUGOVERLAY)\
 GLOBAL(int countLightUpdates)\
 GLOBAL(int countChunkGen)\
 
 #ifdef HELPER_INIT
 # define GLOBAL(what) what;
-# define GLOBALI(what, init) what = init;
+# define GLOBALI(what, init) what = (init);
   GLOBALS
 # undef GLOBAL
 # undef GLOBALI
