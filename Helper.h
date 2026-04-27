@@ -108,13 +108,13 @@ class Block{
 public:
 	constexpr Block(Tile t1, Tile bgnd, float fl = 0, char lght = 0):t(t1),fluid(fl),bg(bgnd),light(lght){}
 	Block() = default;
+	float fluid = 0;
 	Tile t = Tile::UNKNOWN;//Foreground tile
 	Tile bg = Tile::UNKNOWN;//Background tile
-	float fluid = 0;
-	char light = 0;//0-127 128-255
-	bool lightSource = false;
-	bool skyView = false;
-	bool hasScheduledLightUpdate = false;
+	char light = 0;//0-127
+	bool lightSource:1 = false;
+	bool skyView:1 = false;
+	bool hasScheduledLightUpdate:1 = false;
 };
 
 class Map{
@@ -139,7 +139,7 @@ public:
 	~Map();
 	void generateWorld();
 	void update();
-	void updateLight(int x, int y, bool genStep=false);
+	void updateLight(int x, int y, bool genStep = false);
 	void render();
 	bool save(const std::string& file)const;
 	bool load(const std::string& file);
