@@ -1,7 +1,7 @@
 #include "Helper.h"
 #include <iostream>
 
-Player::Player(float x1, float y1) :x(x1),y(y1){}
+Player::Player(GameState& game, float x1, float y1) :x(x1),y(y1), game(game){}
 
 bool Player::addInventory(Block b){
 	for(size_t i = 0; i < INVENTORY_SIZE; i++){
@@ -25,34 +25,34 @@ void Player::update(){//TODO: ugly, it still does not work ideally, but it works
 
 	float mox, moy;
 	int button = SDL_GetMouseState(&mox, &moy);
-	int tx = map->tPosX((int) mox);
-	int ty = map->tPosY((int) moy);
+	int tx = game.map->tPosX((int) mox);
+	int ty = game.map->tPosY((int) moy);
 	if(breakX != tx || breakY != ty){
 		breakDurability = 0;
-		breakMaxDurability = durability(map->world(tx,ty).t);
+		breakMaxDurability = durability(game.map->world(tx,ty).t);
 		breakX = tx;
 		breakY = ty;
 	}
-	if(button & SDL_BUTTON_LMASK){
+	if(button & SDL_BUTTON_RMASK){
 		if(lastPlaceTicks <= SDL_GetTicks() - PLACE_MILLIS){
 			if(inventory[selectedSlot].count != 0){
-				if(map->place(tx, ty, inventory[selectedSlot].type)){
+				if(game.map->place(tx, ty, inventory[selectedSlot].type)){
 					lastPlaceTicks = SDL_GetTicks();
 					inventory[selectedSlot].count--;
-					map->updateLight(tx, ty);
+					game.map->updateLight(tx, ty);
 				}
-			} else if(debugMode){
-				map->world(tx, ty).lightSource = !map->world(tx, ty).lightSource;
-				map->updateLight(tx, ty);
+			} else if(game.debugMode){
+				game.map->world(tx, ty).lightSource = !game.map->world(tx, ty).lightSource;
+				game.map->updateLight(tx, ty);
 			}
 		}
-	} else if(button & SDL_BUTTON_RMASK){
-		Block& b = map->world(tx, ty);
+	} else if(button & SDL_BUTTON_LMASK){
+		Block& b = game.map->world(tx, ty);
 		if(isSolid(b.t)){
 			breakDurability++;
-			if(debugMode || breakDurability >= breakMaxDurability){
+			if(game.debugMode || breakDurability >= breakMaxDurability){
 				breakDurability = 0;
-				Block d = map->destroy(tx, ty);
+				Block d = game.map->destroy(tx, ty);
 				if(!addInventory(d)){
 					std::cout << "No space in inventory!" << std::endl;
 				}
@@ -63,23 +63,23 @@ void Player::update(){//TODO: ugly, it still does not work ideally, but it works
 	int mX = (int)floorf(x / tileSize);
 	int mY = (int) floorf(y / tileSize);
 	// on ground if both blocks under player are solid unless standing exactly on tile, then not on ground
-	onGround = map->isSolid(mX, mY + 1) || (mX-(x/tileSize) != 0.f && map->isSolid(mX + 1, mY + 1));
+	onGround = game.map->isSolid(mX, mY + 1) || (mX-(x/tileSize) != 0.f && game.map->isSolid(mX + 1, mY + 1));
 
 	//can move if not going to be blocked and in air not blocked by both tiles
 
 	if(key_states[SDL_SCANCODE_D]){
-		if(!map->isSolid((int) floorf((x + PLAYER_SPEED) / tileSize) + 1, mY)
-			&& !(!onGround && map->isSolid((int) floorf((x + PLAYER_SPEED) / tileSize) + 1, mY + 1))
+		if(!game.map->isSolid((int) floorf((x + PLAYER_SPEED) / tileSize) + 1, mY)
+			&& !(!onGround && game.map->isSolid((int) floorf((x + PLAYER_SPEED) / tileSize) + 1, mY + 1))
 			){
 			x += PLAYER_SPEED;
-		} else if(!map->isSolid(mX + 1, mY) //can snap?
-			&& !(!onGround && map->isSolid(mX + 1, mY + 1))
+		} else if(!game.map->isSolid(mX + 1, mY) //can snap?
+			&& !(!onGround && game.map->isSolid(mX + 1, mY + 1))
 			){
 			x = x + (mX - (x / tileSize)) * tileSize +tileSize;
 		}
 	} else if(key_states[SDL_SCANCODE_A]){
-		if(!map->isSolid((int) floorf((x - PLAYER_SPEED) / tileSize), mY)
-			&& !(!onGround && map->isSolid((int) floorf((x - PLAYER_SPEED) / tileSize), mY + 1))
+		if(!game.map->isSolid((int) floorf((x - PLAYER_SPEED) / tileSize), mY)
+			&& !(!onGround && game.map->isSolid((int) floorf((x - PLAYER_SPEED) / tileSize), mY + 1))
 			){
 			x -= PLAYER_SPEED;
 		} else{
@@ -89,19 +89,19 @@ void Player::update(){//TODO: ugly, it still does not work ideally, but it works
 	mX = (int) floorf(x / tileSize);
 
 	float distanceToTileBoundary = (mY - y / tileSize)*tileSize;
-	if(!map->isSolid(mX, (int) floorf((y + yVel) / tileSize))
-		&& !(mX - (x / tileSize) != 0.f && map->isSolid(mX + 1, (int) floorf((y + yVel) / tileSize)))){
+	if(!game.map->isSolid(mX, (int) floorf((y + yVel) / tileSize))
+		&& !(mX - (x / tileSize) != 0.f && game.map->isSolid(mX + 1, (int) floorf((y + yVel) / tileSize)))){
 		y += yVel;
 	} else{
 		yVel = distanceToTileBoundary;
 	}
 
 	mY = (int) floorf(y / tileSize);
-	onGround = map->isSolid(mX, mY + 1) || (mX - (x / tileSize) != 0.f && map->isSolid(mX + 1, mY + 1));
-	bool mayBeOnGround = map->isSolid(mX, mY + 2) || (mX - (x / tileSize) != 0.f && map->isSolid(mX + 1, mY + 2));
+	onGround = game.map->isSolid(mX, mY + 1) || (mX - (x / tileSize) != 0.f && game.map->isSolid(mX + 1, mY + 1));
+	bool mayBeOnGround = game.map->isSolid(mX, mY + 2) || (mX - (x / tileSize) != 0.f && game.map->isSolid(mX + 1, mY + 2));
 	distanceToTileBoundary = 32 + (mY - y / tileSize)*tileSize;
 
-	Block& b = map->world(mX, mY);
+	Block& b = game.map->world(mX, mY);
 
 	if(!onGround){// IN AIR (or water)
 		yVel += GRAVITY;
@@ -123,32 +123,59 @@ void Player::update(){//TODO: ugly, it still does not work ideally, but it works
 }
 
 void Player::render(){
-	const SDL_FRect dest = {x - cameraX + wWidth / 2, y - cameraY + wHeight / 2, tileSize, tileSize};
-	SDL_RenderTexture(renderer, tiles[Tile::PLAYER], &tileFRect, &dest);
-	const SDL_FRect breakBlk = {map->posX(breakX),map->posY(breakY),tileSize,tileSize};
+	const SDL_FRect dest = {x - game.cameraX + game.wWidth / 2, y - game.cameraY + game.wHeight / 2, tileSize, tileSize};
+	SDL_RenderTexture(game.renderer, game.tiles[Tile::PLAYER], &tileFRect, &dest);
+	const SDL_FRect breakBlk = {game.map->posX(breakX),game.map->posY(breakY),tileSize,tileSize};
 	char p = (char) (((float) breakDurability / (float) breakMaxDurability) * 0xff);
-	SDL_SetRenderDrawColor(renderer,0,0,0,p);
-	SDL_RenderFillRect(renderer, &breakBlk);
+	SDL_SetRenderDrawColor(game.renderer,0,0,0,p);
+	SDL_RenderFillRect(game.renderer, &breakBlk);
 
 
 	for(size_t i = 0; i < INVENTORY_SIZE; i++){
-		const SDL_FRect itemFrameRect = {wWidth / 2 - (INVENTORY_SIZE / 2.f - i) * tileSize * 3.f,wHeight - tileSize * 3.f,tileSize * 2.f,tileSize * 2.f};
-		SDL_SetRenderDrawColor(renderer, 0xff, 0xff, 0xff, 0xff);
-		SDL_RenderRect(renderer, &itemFrameRect);
+		const SDL_FRect itemFrameRect = {game.wWidth / 2 - (INVENTORY_SIZE / 2.f - i) * tileSize * 3.f,game.wHeight - tileSize * 3.f,tileSize * 2.f,tileSize * 2.f};
+		SDL_SetRenderDrawColor(game.renderer, 0xff, 0xff, 0xff, 0xff);
+		SDL_RenderRect(game.renderer, &itemFrameRect);
 		if(i == selectedSlot){
-			const SDL_FRect itemSelRect = {wWidth / 2 - (INVENTORY_SIZE / 2.f - i) * tileSize * 3.f+2,wHeight - tileSize * 3.f+2,tileSize * 2.f-4,tileSize * 2.f-4};
-			SDL_RenderRect(renderer, &itemSelRect);
+			const SDL_FRect itemSelRect = {game.wWidth / 2 - (INVENTORY_SIZE / 2.f - i) * tileSize * 3.f+2,game.wHeight - tileSize * 3.f+2,tileSize * 2.f-4,tileSize * 2.f-4};
+			SDL_RenderRect(game.renderer, &itemSelRect);
 		}
 		if(inventory[i].type != Tile::UNKNOWN && inventory[i].count != 0){
-			const SDL_FRect itemRect = {wWidth / 2 - (INVENTORY_SIZE / 2.f - i) * tileSize * 3.f + tileSize / 2,wHeight - tileSize * 3.f + tileSize / 2, (float)tileSize, (float) tileSize};
-			SDL_RenderTexture(renderer, tiles[inventory[i].type], &tileFRect, &itemRect);
+			const SDL_FRect itemRect = {game.wWidth / 2 - (INVENTORY_SIZE / 2.f - i) * tileSize * 3.f + tileSize / 2,game.wHeight - tileSize * 3.f + tileSize / 2, (float)tileSize, (float) tileSize};
+			SDL_RenderTexture(game.renderer, game.tiles[inventory[i].type], &tileFRect, &itemRect);
 			char string[4];
 			SDL_snprintf(string, sizeof(string), "%d", inventory[i].count);//TODO: max stack size
-			TTF_SetTextString(text, string, 0);
+			TTF_SetTextString(game.text, string, 0);
 			int w = 0;
-			TTF_MeasureString(font, string, 2, 0, &w, nullptr);
-			TTF_DrawRendererText(text, itemRect.x+tileSize/2-w/2, itemRect.y + tileSize*3/2);
+			TTF_MeasureString(game.font, string, 2, 0, &w, nullptr);
+			TTF_DrawRendererText(game.text, itemRect.x+tileSize/2-w/2, itemRect.y + tileSize*3/2);
 			
 		}
 	}
+}
+
+void Player::save(std::ofstream& out) const{
+	write(out, &x);
+	write(out, &y);
+	write(out, &yVel);
+	write(out, &onGround);
+	write(out, &inventory);
+	write(out, &selectedSlot);
+	write(out, &breakDurability);
+	write(out, &breakMaxDurability);
+	write(out, &breakX);
+	write(out, &breakY);
+}
+
+void Player::load(std::ifstream& in){
+	read(in, &x);
+	read(in, &y);
+	read(in, &yVel);
+	read(in, &onGround);
+	read(in, &inventory);
+	read(in, &selectedSlot);
+	lastPlaceTicks = 0;
+	read(in, &breakDurability);
+	read(in, &breakMaxDurability);
+	read(in, &breakX);
+	read(in, &breakY);
 }

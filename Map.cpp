@@ -1,14 +1,11 @@
 #include "Helper.h"
-#include <cassert>
-#include <iostream>
-#include <fstream>
 
-Map::Map(){
+Map::Map(GameState& game):game(game){
 	chunks = std::unordered_map<uint32_t, Chunk*>();
 	const double n1 = perlin.noise2D(20 * 0.01, 1) * TERRAIN_STEEPNESS + 100;
-	player = new Player(20.f * tileSize, (float)tileSize*(((int)n1)-1));
-	cameraX = player->x;
-	cameraY = player->y;
+	player = std::make_unique<Player>(game, 20.f * tileSize, (float)tileSize*(((int)n1)-1));
+	game.cameraX = player->x;
+	game.cameraY = player->y;
 }
 
 Map::~Map(){
@@ -16,20 +13,19 @@ Map::~Map(){
 		if(ch.second!=nullptr)
 		delete ch.second;
 	}
-	delete player;
 }
 
 inline float Map::posX(int x)const{
-	return tileSize * x - cameraX + wWidth / 2.f;
+	return tileSize * x - game.cameraX + game.wWidth / 2.f;
 }
 inline float Map::posY(int y)const{
-	return tileSize * y - cameraY + wHeight / 2.f;
+	return tileSize * y - game.cameraY + game.wHeight / 2.f;
 }
 int Map::tPosX(int x)const{
-	return (int) floorf((x + cameraX - wWidth / 2.f) / tileSize);
+	return (int) floorf((x + game.cameraX - game.wWidth / 2.f) / tileSize);
 }
 int Map::tPosY(int y)const{
-	return (int) floorf((y + cameraY - wHeight / 2.f) / tileSize);
+	return (int) floorf((y + game.cameraY - game.wHeight / 2.f) / tileSize);
 }
 #define KEY(high,low)(((uint32_t)(high) << 16) | ((uint32_t) (low))&0xFFFF)
 
@@ -41,10 +37,10 @@ inline Map::Chunk* Map::chunkAt(int x, int y){
 	try{
 		ch = chunks.at(key);
 	} catch(const std::out_of_range&){
-		ch = new Chunk(cx, cy);
+		ch = new Chunk(this, cx, cy);
 		ch->generate();
 		chunks.insert({key, ch});
-		countChunkGen++;
+		game.countChunkGen++;
 	}
 	return ch;
 }
@@ -66,16 +62,18 @@ bool Map::isSolid(int x, int y){
 }
 
 void Map::generateWorld(){
+	std::cout << "Generating chunks" << std::endl;
 	for(int i = -2; i <= 2; i++){
 		for(int j = -2; j <= 2; j++){
-			Chunk* ch = new Chunk(i,j);
+			Chunk* ch = new Chunk(this, i, j);
 			ch->generate();
 			chunks.insert({KEY(i,j), ch});
 		}
 	}
+	std::cout << "Digging caves" << std::endl;
 	for(int idx = 0; idx <= caveCount; idx++){
 		double wx = 0;
-		double wy = (int) (perlin.noise2D(0, 1) * TERRAIN_STEEPNESS) + 100 + idx * 40;
+		double wy = (int) (perlin.noise2D(0, 1) * TERRAIN_STEEPNESS) + 100 + idx * caveDistance;
 		double seed = wy;
 		int length = 0;
 		double dx = 0, dy = 0;
@@ -110,6 +108,7 @@ void Map::generateWorld(){
 			length += 1;
 		}
 	}
+	/*std::cout << "Shining light" << std::endl;
 	for(int i = -2; i <= 2; i++){
 		for(int j = -2; j <= 2; j++){
 			Chunk* ch = chunkAt(i*chSize, j*chSize);
@@ -124,10 +123,12 @@ void Map::generateWorld(){
 				}
 			}
 		}
-	}
+	}*/
+	std::cout << "Processing light updates" << std::endl;
 
 	int count = 0;
-	while(!lightUpdateQueue.empty() && count++ < 1000000){
+	while(!lightUpdateQueue.empty()){
+		count++;
 		const auto [x, y, g] = lightUpdateQueue.front();
 		lightUpdateQueue.pop_front();
 		Chunk* ch = chunkAt(x, y);
@@ -138,7 +139,7 @@ void Map::generateWorld(){
 	std::cout << "World generation updated light " << count << " times.\n" << std::endl;
 }
 
-Map::Chunk::Chunk(short x, short y) :x(x), y(y) {
+Map::Chunk::Chunk(Map* map, short x, short y) :x(x), y(y), map(map){
 	std::cout << "Created chunk [" << x << "][" << y << "]:\""<< KEY(x,y) << "\"" << std::endl;
 	for(size_t i = 0; i < chSize*chSize; i++){
 		data[i] = Block();//No init, leave Tile::UNKNOWN
@@ -149,7 +150,7 @@ void Map::Chunk::generate(){
 	int gx = x * chSize;
 	int gy = y * chSize;
 	constexpr int height = 100;
-	srand(seed*seed+x+y*seed);
+	std::mt19937 rng(seed * seed + x + y * seed);
 	int treeHeight = (int) (perlin.noise2D((gx + chSize / 2) * 0.01, 1) * TERRAIN_STEEPNESS) + height;
 	for(int i = 0; i < chSize; i++){
 		const int n1 = (int)(perlin.noise2D((gx+i) * 0.01, 1) * TERRAIN_STEEPNESS) + height;
@@ -168,7 +169,8 @@ void Map::Chunk::generate(){
 			}
 			else if(j+gy<n1+dirtHeight)data[i + j * chSize] = Block(Tile::DIRT,Tile::DIRT, 0);
 			else{
-				bool ore = (rand() % 10000) > 9990;
+				std::uniform_int_distribution<> dist(0, 10000);
+				bool ore = dist(rng) > 9990;
 				if(ore){
 					data[i + j * chSize] = Block(Tile::GLOW, Tile::STONE, 0);
 					data[i + j * chSize].lightSource = true;
@@ -179,14 +181,9 @@ void Map::Chunk::generate(){
 		}
 	}
 	short treeY = (short) floorf(treeHeight / (float) chSize);
-	if(treeY==y&&treeHeight<= height)generateTree(chSize/2, treeHeight-gy);
+	if(treeY == y && treeHeight <= height)generateTree(chSize / 2, treeHeight - gy);
 	for(int x = 0; x < chSize; x++){
 		for(int y = 0; y < chSize; y++){
-			updateLight(x, y, true);
-		}
-	}
-	for(int x = chSize - 1; x >= 0; x--){
-		for(int y = chSize - 1; y >= 0; y--){
 			updateLight(x, y, true);
 		}
 	}
@@ -248,14 +245,14 @@ void Map::Chunk::update(){
 				float& flu = under.fluid;
 				if(!::isSolid(under.t)){
 					float fl = fl1 + flu;
-					if(fl <= 1){
+					if(fl <= 1){//Fill tile below
 						flu = fl;
 						fl1 = 0;
-					} else if(fl > 1 && fl <= 2.25f){
+					} else if(fl > 1 && fl <= 2.25f){//Second tile pressure propagation
 						float k = (fl1 + (flu - 1) * 4) / 2;
 						flu = 1 + k * 0.25f;
 						fl1 = fl - 1 - k * 0.25f;
-					} else if(fl > 2.25){
+					} else if(fl > 2.25){//Deep tile pressure propagation
 						fl1 = (fl - 0.25f) / 2;
 						flu = (fl + 0.25f) / 2;
 					}
@@ -300,7 +297,7 @@ void Map::updateLight(int x, int y, bool genStep){
 	Block& b = world(x, y);
 	if(!b.hasScheduledLightUpdate){
 		lightUpdateQueue.push_back(p);
-		countLightUpdates = lightUpdateQueue.size();
+		game.countLightUpdates = lightUpdateQueue.size();
 		b.hasScheduledLightUpdate = true;
 	}
 }
@@ -385,8 +382,8 @@ void Map::Chunk::updateLight(int i, int j, bool genStep){
 	}
 }
 
-void Map::handleKeyDown(char key){
-}
+/*void Map::handleKeyDown(char key){
+}*/
 
 void Map::handleMouseWheel(SDL_MouseWheelEvent event){
 	bool dir = event.integer_y < 0;
@@ -428,7 +425,7 @@ Block Map::destroy(int x, int y){
 
 
 void Map::update(){
-	countLightUpdates = lightUpdateQueue.size();
+	game.countLightUpdates = lightUpdateQueue.size();
 	short px = (short) floorf(player->x / tileSize);
 	short py = (short) floorf(player->y / tileSize);
 	for(int i = -UPDATE_RADIUS; i <= UPDATE_RADIUS; i++){
@@ -450,13 +447,13 @@ void Map::update(){
 }
 
 void Map::render(){
-	cameraX += (player->x - cameraX + tileSize / 2) / 10;
-	cameraY += (player->y - cameraY + tileSize / 2) / 10;
+	game.cameraX += (player->x - game.cameraX + tileSize / 2) / 10;
+	game.cameraY += (player->y - game.cameraY + tileSize / 2) / 10;
 
-	int beginX = (int) (cameraX - wWidth / 2) / tileSize-1;
-	int beginY = (int) (cameraY - wHeight / 2) / tileSize-1;
-	int endX = (int) (cameraX + wWidth / 2) / tileSize+1;
-	int endY = (int) (cameraY + wHeight / 2) / tileSize+1;
+	int beginX = (int) (game.cameraX - game.wWidth / 2) / tileSize-1;
+	int beginY = (int) (game.cameraY - game.wHeight / 2) / tileSize-1;
+	int endX = (int) (game.cameraX + game.wWidth / 2) / tileSize+1;
+	int endY = (int) (game.cameraY + game.wHeight / 2) / tileSize+1;
 	for(int x = beginX; x < endX; x++){
 		for(int y = beginY; y < endY; y++){
 			//TODO: looks up chunks every iteration
@@ -466,34 +463,34 @@ void Map::render(){
 			Block& b = world(x, y);
 			const SDL_FRect dest = {posX(x),posY(y),tileSize,tileSize};
 			if(::hasBackground(b.t) && b.bg!=Tile::AIR){
-				SDL_RenderTexture(renderer, tiles[b.bg], &tileFRect, &dest);
+				SDL_RenderTexture(game.renderer, game.tiles[b.bg], &tileFRect, &dest);
 				const SDL_FRect shadowRect = {posX(x),posY(y),(float) tileSize,(float) tileSize};
-				SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0x55);
-				SDL_RenderFillRect(renderer, &shadowRect);
+				SDL_SetRenderDrawColor(game.renderer, 0, 0, 0, 0x55);
+				SDL_RenderFillRect(game.renderer, &shadowRect);
 			} else{
-				SDL_RenderTexture(renderer, tiles[b.t], &tileFRect, &dest);
+				SDL_RenderTexture(game.renderer, game.tiles[b.t], &tileFRect, &dest);
 			}
 			if(b.fluid > 0){
 				const SDL_FRect fluidRect = {posX(x),posY(y) + tileSize * (1 - fminf(b.fluid,1)),(float) tileSize,tileSize * fminf(b.fluid,1)};
-				SDL_SetRenderDrawColor(renderer,0x44,0x44,0xaa,0xff);
-				SDL_RenderFillRect(renderer, &fluidRect);
-				if(overlayFluid){
+				SDL_SetRenderDrawColor(game.renderer,0x44,0x44,0xaa,0xff);
+				SDL_RenderFillRect(game.renderer, &fluidRect);
+				if(game.overlayFluid){
 					char string[4];
 					SDL_snprintf(string, sizeof(string), "%.1f", b.fluid);
-					TTF_SetTextString(text, string, sizeof(string));
-					TTF_DrawRendererText(text, dest.x, dest.y + tileSize / 2);
+					TTF_SetTextString(game.text, string, sizeof(string));
+					TTF_DrawRendererText(game.text, dest.x, dest.y + tileSize / 2);
 				}
 			}
-			if(overlayLight){
+			if(game.overlayLight){
 				char string[4];
 				SDL_snprintf(string, sizeof(string), "%d", b.light);
-				TTF_SetTextString(text, string, sizeof(string));
-				TTF_DrawRendererText(text, dest.x, dest.y + tileSize / 2);
+				TTF_SetTextString(game.text, string, sizeof(string));
+				TTF_DrawRendererText(game.text, dest.x, dest.y + tileSize / 2);
 			}
 			//if(b.light != 127){
 				const SDL_FRect shadowRect = {posX(x), posY(y), (float) tileSize, (float) tileSize};
-				SDL_SetRenderDrawColor(renderer, 0, 0, 0, (127 - b.light) * 2);
-				SDL_RenderFillRect(renderer, &shadowRect);
+				SDL_SetRenderDrawColor(game.renderer, 0, 0, 0, (127 - b.light) * 2);
+				SDL_RenderFillRect(game.renderer, &shadowRect);
 			//}
 		}
 	}
@@ -503,24 +500,15 @@ void Map::render(){
 	int ty = tPosY((int)my);
 
 	const SDL_FRect cursorRect = {posX(tx), posY(ty),tileSize,tileSize};
-	SDL_SetRenderDrawColor(renderer,0,0,0,0xff);
-	SDL_RenderRect(renderer, &cursorRect);
-	if(debugMode){
+	SDL_SetRenderDrawColor(game.renderer,0,0,0,0xff);
+	SDL_RenderRect(game.renderer, &cursorRect);
+	if(game.debugMode){
 		Chunk* ch = chunkAt((int)player->x / tileSize, (int)player->y / tileSize);
 		const SDL_FRect chunkRect = {posX(ch->x*chSize), posY(ch->y*chSize),chSize*tileSize,chSize*tileSize};
-		SDL_SetRenderDrawColor(renderer, 0, 0, 0xff, 0xff);
-		SDL_RenderRect(renderer, &chunkRect);
+		SDL_SetRenderDrawColor(game.renderer, 0, 0, 0xff, 0xff);
+		SDL_RenderRect(game.renderer, &chunkRect);
 	}
 	player->render();
-}
-
-template<typename T>
-void write(std::ofstream& out, T* t){
-	out.write((char*) t, sizeof(T));
-}
-template<typename T>
-void read(std::ifstream& in, T* t){
-	in.read((char*) t, sizeof(T));
 }
 
 bool Map::save(const std::string& file)const{
@@ -529,12 +517,12 @@ bool Map::save(const std::string& file)const{
 		std::cerr << "Map::save failed to open "<< file << std::endl;
 		return false;
 	}
-	write(out, player);
+	player.get()->save(out);
 	uint32_t count = chunks.size();
 	write(out, &chSize);
 	write(out, &count);
 	for(const auto& ch : chunks){
-		write(out, ch.second);
+		ch.second->save(out);
 	}
 	out.close();
 	std::cout << "Saved to " << file << std::endl;
@@ -547,9 +535,9 @@ bool Map::load(const std::string& file){
 		std::cerr << "Map::load failed to open " << file << std::endl;
 		return false;
 	}
-	read(in, player);
-	cameraX = player->x;
-	cameraY = player->y;
+	player.get()->load(in);
+	game.cameraX = player->x;
+	game.cameraY = player->y;
 	int tmpChSize;
 	uint32_t tmpCount;
 	read(in, &tmpChSize);
@@ -560,11 +548,22 @@ bool Map::load(const std::string& file){
 	}
 	read(in, &tmpCount);
 	for(size_t i = 0; i < tmpCount; i++){
-		Chunk* ch = new Chunk();
-		read(in, ch);
+		Chunk* ch = new Chunk(this);
+		ch->load(in);
 		chunks[KEY(ch->x, ch->y)] = ch;
 	}
 	in.close();
 	std::cout << "Loaded from " << file << std::endl;
 	return true;
+}
+
+void Map::Chunk::save(std::ofstream& out) const{
+	write(out, &x);
+	write(out, &y);
+	write(out, &data);
+}
+void Map::Chunk::load(std::ifstream& in){
+	read(in, &x);
+	read(in, &y);
+	read(in, &data);
 }
