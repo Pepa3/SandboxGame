@@ -27,7 +27,7 @@ int Map::tPosX(int x)const{
 int Map::tPosY(int y)const{
 	return (int) floorf((y + game.cameraY - game.wHeight / 2.f) / tileSize);
 }
-#define KEY(high,low)(((uint32_t)(high) << 16) | ((uint32_t) (low))&0xFFFF)
+inline constexpr uint32_t KEY(uint32_t high, uint32_t low){ return ((high << 16) | (low & 0xFFFF)); }
 
 inline Map::Chunk* Map::chunkAt(int x, int y){
 	short cx = (short) floorf(x / (float) chSize);
@@ -70,7 +70,7 @@ void Map::generateWorld(){
 			chunks.insert({KEY(i,j), ch});
 		}
 	}
-	std::cout << "Digging caves" << std::endl;
+	std::cout << "Digging caves" << std::endl;//Generates chunks
 	for(int idx = 0; idx <= caveCount; idx++){
 		double wx = 0;
 		double wy = (int) (perlin.noise2D(0, 1) * TERRAIN_STEEPNESS) + 100 + idx * caveDistance;
@@ -454,46 +454,58 @@ void Map::render(){
 	int beginY = (int) (game.cameraY - game.wHeight / 2) / tileSize-1;
 	int endX = (int) (game.cameraX + game.wWidth / 2) / tileSize+1;
 	int endY = (int) (game.cameraY + game.wHeight / 2) / tileSize+1;
-	for(int x = beginX; x < endX; x++){
-		for(int y = beginY; y < endY; y++){
-			//TODO: looks up chunks every iteration
-			// currently rendering abour one chunk of tiles(2500), spread into max 6 chunks
-			// can't just render all visible chunks, visibility must be handled at tile resolution
-
-			Block& b = world(x, y);
-			const SDL_FRect dest = {posX(x),posY(y),tileSize,tileSize};
-			if(::hasBackground(b.t) && b.bg!=Tile::AIR){
-				SDL_RenderTexture(game.renderer, game.tiles[b.bg], &tileFRect, &dest);
-				const SDL_FRect shadowRect = {posX(x),posY(y),(float) tileSize,(float) tileSize};
-				SDL_SetRenderDrawColor(game.renderer, 0, 0, 0, 0x55);
-				SDL_RenderFillRect(game.renderer, &shadowRect);
-			} else{
-				SDL_RenderTexture(game.renderer, game.tiles[b.t], &tileFRect, &dest);
-			}
-			if(b.fluid > 0){
-				const SDL_FRect fluidRect = {posX(x),posY(y) + tileSize * (1 - fminf(b.fluid,1)),(float) tileSize,tileSize * fminf(b.fluid,1)};
-				SDL_SetRenderDrawColor(game.renderer,0x44,0x44,0xaa,0xff);
-				SDL_RenderFillRect(game.renderer, &fluidRect);
-				if(game.overlayFluid){
-					char string[4];
-					SDL_snprintf(string, sizeof(string), "%.1f", b.fluid);
-					TTF_SetTextString(game.text, string, sizeof(string));
-					TTF_DrawRendererText(game.text, dest.x, dest.y + tileSize / 2);
+	int chBeginX = (int) floorf((float) beginX / chSize);
+	int chBeginY = (int) floorf((float) beginY / chSize);
+	int chEndX = (int) floorf((float) endX / chSize);
+	int chEndY = (int) floorf((float) endY / chSize);
+	for(int cx = chBeginX; cx <= chEndX; cx++){
+		int bx = cx == chBeginX ? beginX - chBeginX * chSize : 0;
+		int ex = cx == chEndX ? endX - chEndX * chSize : chSize - 1;
+		for(int cy = chBeginY; cy <= chEndY; cy++){
+			int by = cy == chBeginY ? beginY - chBeginY * chSize : 0;
+			int ey = cy == chEndY ? endY - chEndY * chSize : chSize - 1;
+			Chunk* ch = chunkAt(cx*chSize,cy*chSize);
+			for(int lx = bx; lx <= ex; lx++){
+				for(int ly = by; ly <= ey; ly++){
+					int x = lx + cx * chSize;
+					int y = ly + cy * chSize;
+					Block& b = ch->data[lx + ly * chSize];
+					const SDL_FRect dest = {posX(x),posY(y),tileSize,tileSize};
+					if(::hasBackground(b.t) && b.bg != Tile::AIR){
+						SDL_RenderTexture(game.renderer, game.tiles[b.bg], &tileFRect, &dest);
+						const SDL_FRect shadowRect = {posX(x),posY(y),(float) tileSize,(float) tileSize};
+						SDL_SetRenderDrawColor(game.renderer, 0, 0, 0, 0x55);
+						SDL_RenderFillRect(game.renderer, &shadowRect);
+					} else{
+						SDL_RenderTexture(game.renderer, game.tiles[b.t], &tileFRect, &dest);
+					}
+					if(b.fluid > 0){
+						const SDL_FRect fluidRect = {posX(x),posY(y) + tileSize * (1 - fminf(b.fluid,1)),(float) tileSize,tileSize * fminf(b.fluid,1)};
+						SDL_SetRenderDrawColor(game.renderer, 0x44, 0x44, 0xaa, 0xff);
+						SDL_RenderFillRect(game.renderer, &fluidRect);
+						if(game.overlayFluid){
+							char string[4];
+							SDL_snprintf(string, sizeof(string), "%.1f", b.fluid);
+							TTF_SetTextString(game.text, string, sizeof(string));
+							TTF_DrawRendererText(game.text, dest.x, dest.y + tileSize / 2);
+						}
+					}
+					if(game.overlayLight){
+						char string[4];
+						SDL_snprintf(string, sizeof(string), "%d", b.light);
+						TTF_SetTextString(game.text, string, sizeof(string));
+						TTF_DrawRendererText(game.text, dest.x, dest.y + tileSize / 2);
+					}
+					//if(b.light != 127){
+					const SDL_FRect shadowRect = {posX(x), posY(y), (float) tileSize, (float) tileSize};
+					SDL_SetRenderDrawColor(game.renderer, 0, 0, 0, (127 - b.light) * 2);
+					SDL_RenderFillRect(game.renderer, &shadowRect);
+					//}
 				}
 			}
-			if(game.overlayLight){
-				char string[4];
-				SDL_snprintf(string, sizeof(string), "%d", b.light);
-				TTF_SetTextString(game.text, string, sizeof(string));
-				TTF_DrawRendererText(game.text, dest.x, dest.y + tileSize / 2);
-			}
-			//if(b.light != 127){
-				const SDL_FRect shadowRect = {posX(x), posY(y), (float) tileSize, (float) tileSize};
-				SDL_SetRenderDrawColor(game.renderer, 0, 0, 0, (127 - b.light) * 2);
-				SDL_RenderFillRect(game.renderer, &shadowRect);
-			//}
 		}
 	}
+
 	float mx, my;
 	SDL_GetMouseState(&mx, &my);
 	int tx = tPosX((int)mx);
@@ -507,6 +519,14 @@ void Map::render(){
 		const SDL_FRect chunkRect = {posX(ch->x*chSize), posY(ch->y*chSize),chSize*tileSize,chSize*tileSize};
 		SDL_SetRenderDrawColor(game.renderer, 0, 0, 0xff, 0xff);
 		SDL_RenderRect(game.renderer, &chunkRect);
+		Chunk* ch2 = chunkAt(chBeginX, chBeginY);
+		const SDL_FRect chunkRect2 = {posX(ch2->x * chSize), posY(ch2->y * chSize),chSize * tileSize,chSize * tileSize};
+		SDL_SetRenderDrawColor(game.renderer, 0, 0xff, 0xff, 0xff);
+		SDL_RenderRect(game.renderer, &chunkRect2);
+		Chunk* ch3 = chunkAt(chEndX, chEndY);
+		const SDL_FRect chunkRect3 = {posX(ch3->x * chSize), posY(ch3->y * chSize),chSize * tileSize,chSize * tileSize};
+		SDL_SetRenderDrawColor(game.renderer, 0xff, 0, 0xff, 0xff);
+		SDL_RenderRect(game.renderer, &chunkRect3);
 	}
 	player->render();
 }

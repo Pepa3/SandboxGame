@@ -85,7 +85,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv){
 	SDL_DestroySurface(tilemap);
 
 	game.map = std::make_unique<Map>(game);
-	if(!game.map->load("test1.save"))
+	//if(!game.map->load("test1.save"))
 	game.map->generateWorld();
 
 	return SDL_APP_CONTINUE;

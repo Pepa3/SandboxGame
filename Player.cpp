@@ -4,13 +4,13 @@
 Player::Player(GameState& game, float x1, float y1) :x(x1),y(y1), game(game){}
 
 bool Player::addInventory(Block b){
-	for(size_t i = 0; i < INVENTORY_SIZE; i++){
+	for(uint8_t i = 0; i < INVENTORY_SIZE; i++){
 		if(inventory[i].type == b.t){
 			inventory[i].count++;
 			return true;
 		}
 	}
-	for(size_t i = 0; i < INVENTORY_SIZE; i++){
+	for(uint8_t i = 0; i < INVENTORY_SIZE; i++){
 		if(inventory[i].type == Tile::UNKNOWN || inventory[i].count == 0){
 			inventory[i] = {b.t,1};
 			return true;
@@ -131,7 +131,7 @@ void Player::render(){
 	SDL_RenderFillRect(game.renderer, &breakBlk);
 
 
-	for(size_t i = 0; i < INVENTORY_SIZE; i++){
+	for(uint8_t i = 0; i < INVENTORY_SIZE; i++){
 		const SDL_FRect itemFrameRect = {game.wWidth / 2 - (INVENTORY_SIZE / 2.f - i) * tileSize * 3.f,game.wHeight - tileSize * 3.f,tileSize * 2.f,tileSize * 2.f};
 		SDL_SetRenderDrawColor(game.renderer, 0xff, 0xff, 0xff, 0xff);
 		SDL_RenderRect(game.renderer, &itemFrameRect);
@@ -143,7 +143,7 @@ void Player::render(){
 			const SDL_FRect itemRect = {game.wWidth / 2 - (INVENTORY_SIZE / 2.f - i) * tileSize * 3.f + tileSize / 2,game.wHeight - tileSize * 3.f + tileSize / 2, (float)tileSize, (float) tileSize};
 			SDL_RenderTexture(game.renderer, game.tiles[inventory[i].type], &tileFRect, &itemRect);
 			char string[4];
-			SDL_snprintf(string, sizeof(string), "%d", inventory[i].count);//TODO: max stack size
+			SDL_snprintf(string, sizeof(string), "%d", inventory[i].count);//TODO: max stack size (255)
 			TTF_SetTextString(game.text, string, 0);
 			int w = 0;
 			TTF_MeasureString(game.font, string, 2, 0, &w, nullptr);

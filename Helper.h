@@ -37,7 +37,7 @@ constexpr int caveCount = 7;
 constexpr int caveDistance = 40;
 constexpr int maxlightUpdateCount = 500;
 constexpr int minUpdateTimeMillis = 25;
-constexpr size_t INVENTORY_SIZE = 5;
+constexpr uint8_t INVENTORY_SIZE = 5;
 constexpr size_t PLACE_MILLIS = 250;
 constexpr size_t tileMapWidth = 10, tileMapHeight = 10;
 constexpr size_t TERRAIN_STEEPNESS = 80;
@@ -108,7 +108,7 @@ class Block{
 public:
 	constexpr Block(Tile t1, Tile bgnd, float fl = 0, char lght = 0):t(t1),fluid(fl),bg(bgnd),light(lght){}
 	Block() = default;
-	float fluid = 0;
+	float fluid = 0;//0 - 1 - 1.25 - 1.25+0.25*depth
 	Tile t = Tile::UNKNOWN;//Foreground tile
 	Tile bg = Tile::UNKNOWN;//Background tile
 	char light = 0;//0-127
@@ -178,7 +178,7 @@ private:
 	bool onGround = false;
 	struct Item{
 		Tile type = Tile::UNKNOWN;
-		size_t count = 0;
+		uint8_t count = 0;
 	} inventory[INVENTORY_SIZE];
 	char selectedSlot = 0;
 	uint64_t lastPlaceTicks = 0;
