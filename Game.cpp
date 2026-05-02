@@ -108,7 +108,7 @@ SDL_AppResult SDL_AppIterate(void* appstate){
 	//"\0" "FPS:" "60.00" " LU:" "9999" " CG:" "999"
 	static char string[1+4+5+4+4+4+3];
 	if(lastFPSTime + 1000 <= SDL_GetTicks()){
-		SDL_snprintf(string, sizeof(string), "FPS:%.2f LU:%d CG:%d", frames/(float)(SDL_GetTicks()-lastFPSTime)*1000.f, game.countLightUpdates, game.countChunkGen);
+		SDL_snprintf(string, sizeof(string), "FPS:%.2f LU:%d CG:%d", frames/(double)(SDL_GetTicks()-lastFPSTime)*1000.f, game.countLightUpdates, game.countChunkGen);
 		lastFPSTime = SDL_GetTicks();
 		frames = 0;
 	}

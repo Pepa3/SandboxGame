@@ -50,13 +50,43 @@ const siv::PerlinNoise perlin{seed};
 * TYPE DEFINITIONS
 */
 
-enum Tile :uint8_t{
-	UNKNOWN = 0, AIR = 1, DIRT = 2, STONE = 3, WOOD = 4, SAND = 5, LEAVES=6, GRASS=7, PLAYER=10, GLOW=13
+template<typename S>
+concept scalar = std::is_scalar_v<S>;
+
+template<scalar T, T R>
+class position{
+public:
+	T x, y;
+	position(T x, T y) :x(x), y(y){};
+	template<scalar U, U S>
+	operator const position<U, S>()const{
+		if constexpr(R<S)
+			return position<U, S>((U) floor((x * R) / (double)S), (U) floor((y * R) / (double)S));
+		else
+			return position<U, S>((U) ((x * R) / (double) S), (U) ((y * R) / (double) S));
+	}
+	position<T, R> operator-(const position<T, R>& p)const{
+		return {x - p.x,y - p.y};
+	}
+	position<T, R> operator+(const position<T, R>& p)const{
+		return {x + p.x,y + p.y};
+	}
+};
+
+using posWorld = position<float, 1.0f>;
+using posTile = position<int, tileSize>;
+using posChunk = position<short, tileSize*chSize>;
+
+enum class Tile :uint8_t{
+	UNKNOWN = 0, AIR = 1, DIRT = 2, STONE = 3, WOOD = 4, SAND = 5, LEAVES=6, GRASS=7, PLAYER=10, GLOW=13, COAL=14
+};
+enum class Tool :uint8_t{
+	HAND,PICKAXE
 };
 constexpr bool isSolid(Tile t){
 	switch(t){
-	case AIR:
-	case LEAVES:
+	case Tile::AIR:
+	case Tile::LEAVES:
 		return false;
 	default:
 		return true;
@@ -64,32 +94,57 @@ constexpr bool isSolid(Tile t){
 }
 constexpr bool hasBackground(Tile t){
 	switch(t){
-	case AIR:
+	case Tile::AIR:
 		return true;
 	default:
 		return false;
 	}
 }
-constexpr Tile destroyResult(Tile t){
-	switch(t){
-	case GRASS:
-		return DIRT;
-	case GLOW:
-		return STONE;
-	default:
-		return t;
+constexpr Tile destroyResult(Tile t, Tool l){
+	if(l == Tool::HAND){
+		switch(t){
+		case Tile::DIRT:
+		case Tile::GRASS:
+			return Tile::DIRT;
+		case Tile::WOOD:
+			return Tile::WOOD;
+		case Tile::SAND:
+			return Tile::SAND;
+		default:
+			return Tile::AIR;
+		}
+	} else if(l == Tool::PICKAXE){
+		switch(t){
+		case Tile::DIRT:
+		case Tile::GRASS:
+			return Tile::DIRT;
+		case Tile::SAND:
+			return Tile::SAND;
+		case Tile::COAL:
+			return Tile::COAL;
+		case Tile::GLOW:
+			return Tile::GLOW;
+		case Tile::STONE:
+			return Tile::STONE;
+		default:
+			return Tile::AIR;
+		}
+	} else{
+		assert(false && "Unknown tool");
+		return Tile::UNKNOWN;
 	}
 }
 constexpr int durability(Tile t){
 	switch(t){
-	case SAND:
+	case Tile::SAND:
 		return 10;
-	case GRASS:
-	case DIRT:
-	case WOOD:
+	case Tile::GRASS:
+	case Tile::DIRT:
+	case Tile::WOOD:
 		return 20;
-	case STONE:
-	case GLOW:
+	case Tile::STONE:
+	case Tile::GLOW:
+	case Tile::COAL:
 		return 100;
 	default:
 		return 1;
@@ -122,16 +177,19 @@ public:
 	class Chunk{
 		friend Map;
 	public:
-		Chunk(Map* map, short x, short y);
-		Chunk(Map* map) :x(0), y(0), map(map){}
+		Chunk(Map* map, posChunk p);
+		Chunk(Map* map, short x, short y) :Chunk(map, {x,y}){}
+		Chunk(Map* map) :pos(0,0), map(map){}
 		void generate();
-		void generateTree(int x, int y);
+		void generateTree(int tx, int ty);
+		inline void generateTree(posTile p){ generateTree(p.x,p.y); }
 		void update();
 		void updateLight(int x, int y, bool genStep);
+		inline void updateLight(posTile p, bool genStep){ updateLight(p.x, p.y, genStep); }
 		void save(std::ofstream& out) const;
 		void load(std::ifstream& in);
 	private:
-		short x, y;
+		posChunk pos;
 		Block data[chSize * chSize];
 		Map* map;
 	};
@@ -139,41 +197,48 @@ public:
 	~Map();
 	void generateWorld();
 	void update();
-	void updateLight(int x, int y, bool genStep = false);
+	void updateLight(posTile p, bool genStep = false);
+	inline void updateLight(int x, int y, bool genStep = false){ updateLight({x, y}, genStep); }
 	void render();
 	bool save(const std::string& file)const;
 	bool load(const std::string& file);
 	//void handleKeyDown(char key);
 	void handleMouseWheel(SDL_MouseWheelEvent event);
 	bool place(int x, int y, Tile t);
-	Block destroy(int x, int y);
-	bool isSolid(int x, int y);
-	int tPosX(int x)const;
-	int tPosY(int y)const;
+	inline bool place(posTile p, Tile t){ return place(p.x, p.y, t); }
+	Block destroy(posTile p, Tool tool);
+	inline Block destroy(int x, int y, Tool tool){ return destroy({x,y}, tool); }
+	bool isSolid(posTile p);
+	inline bool isSolid(int x, int y){ return isSolid({x,y}); }
+	inline int tPosX(int x)const;
+	inline int tPosY(int y)const;
 	inline float posX(int x)const;
 	inline float posY(int y)const;
-	inline Block& world(int x, int y);
-	inline Chunk* chunkAt(int x, int y);
-	inline bool chunkExists(int x, int y)const;
+	Block& world(posTile p);
+	inline Block& world(int x, int y){ return world({x,y}); }
+	Chunk* chunkAt(posChunk p);
+	inline Chunk* chunkAt(short x, short y){ return chunkAt({x, y});}
+	bool chunkExists(posChunk p)const;
+	inline bool chunkExists(short x, short y)const{ return chunkExists({x,y}); }
 
 private:
 	GameState& game;
 	std::unique_ptr<Player> player;
 	std::unordered_map<uint32_t, Chunk*> chunks;
-	std::deque<std::tuple<int, int, bool>> lightUpdateQueue;
+	std::deque<std::pair<posTile, bool>> lightUpdateQueue;
 };
 
 class Player{
 	friend Map;
 public:
-	Player(GameState& game, float x, float y);
+	Player(GameState& game, posWorld p);
 	void render();
 	void update();
 	void save(std::ofstream& out) const;
 	void load(std::ifstream& in);
 	bool addInventory(Block b);
 private:
-	float x, y;
+	posWorld pos;
 	float yVel = 0.f;
 	bool onGround = false;
 	struct Item{
@@ -184,7 +249,7 @@ private:
 	uint64_t lastPlaceTicks = 0;
 	int breakDurability = 0;
 	int breakMaxDurability = 0;
-	int breakX = 0, breakY = 0;
+	posTile brokenBlock{0,0};
 	GameState& game;
 };
 
@@ -200,7 +265,7 @@ struct GameState{
 	TTF_TextEngine* engine;
 	TTF_Text* text;
 	SDL_Texture* tiles[0xff];
-	float cameraX, cameraY;
+	posWorld camera{0,0};
 	std::unique_ptr<Map> map;
 	bool overlayFluid = false;
 	bool overlayLight = false;
@@ -209,15 +274,15 @@ struct GameState{
 #else
 	bool debugMode = false;
 #endif
-	int countLightUpdates;
-	int countChunkGen;
+	int countLightUpdates = 0;
+	int countChunkGen = 0;
 };
 
 int SDL_RenderCircle(SDL_Renderer* renderer, float x, float y, int radius);
 int SDL_RenderFillCircle(SDL_Renderer* renderer, float x, float y, int radius);
 
 template<class T>
-concept writable = not requires(T& t, std::ofstream & o){
+concept writable = not requires(const T& t, std::ofstream & o){
 	t.save(o);
 } and std::is_default_constructible_v<T>;
 template<class T>
@@ -225,7 +290,7 @@ concept readable = not requires(T& t, std::ifstream & i){
 	t.load(i);
 } and std::is_default_constructible_v<T>;
 template<writable T>
-void write(std::ofstream& out, T* t){
+void write(std::ofstream& out, const T* t){
 	out.write((char*) t, sizeof(T));
 }
 template<readable T>

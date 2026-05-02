@@ -1,7 +1,7 @@
 #include "Helper.h"
 #include <iostream>
 
-Player::Player(GameState& game, float x1, float y1) :x(x1),y(y1), game(game){}
+Player::Player(GameState& game, posWorld p) :pos(p), game(game){}
 
 bool Player::addInventory(Block b){
 	for(uint8_t i = 0; i < INVENTORY_SIZE; i++){
@@ -27,11 +27,11 @@ void Player::update(){//TODO: ugly, it still does not work ideally, but it works
 	int button = SDL_GetMouseState(&mox, &moy);
 	int tx = game.map->tPosX((int) mox);
 	int ty = game.map->tPosY((int) moy);
-	if(breakX != tx || breakY != ty){
+	if(brokenBlock.x != tx || brokenBlock.y != ty){
 		breakDurability = 0;
 		breakMaxDurability = durability(game.map->world(tx,ty).t);
-		breakX = tx;
-		breakY = ty;
+		brokenBlock.x = tx;
+		brokenBlock.y = ty;
 	}
 	if(button & SDL_BUTTON_RMASK){
 		if(lastPlaceTicks <= SDL_GetTicks() - PLACE_MILLIS){
@@ -52,56 +52,54 @@ void Player::update(){//TODO: ugly, it still does not work ideally, but it works
 			breakDurability++;
 			if(game.debugMode || breakDurability >= breakMaxDurability){
 				breakDurability = 0;
-				Block d = game.map->destroy(tx, ty);
-				if(!addInventory(d)){
+				Block d = game.map->destroy(tx, ty, Tool::HAND);
+				if(d.t!=Tile::AIR && !addInventory(d)){
 					std::cout << "No space in inventory!" << std::endl;
 				}
 			}
 		}
 	}
-
-	int mX = (int)floorf(x / tileSize);
-	int mY = (int) floorf(y / tileSize);
+	posTile m = pos;//m.x,m.y
 	// on ground if both blocks under player are solid unless standing exactly on tile, then not on ground
-	onGround = game.map->isSolid(mX, mY + 1) || (mX-(x/tileSize) != 0.f && game.map->isSolid(mX + 1, mY + 1));
+	onGround = game.map->isSolid(m.x, m.y + 1) || (m.x-(pos.x/tileSize) != 0.f && game.map->isSolid(m.x + 1, m.y + 1));
 
 	//can move if not going to be blocked and in air not blocked by both tiles
 
 	if(key_states[SDL_SCANCODE_D]){
-		if(!game.map->isSolid((int) floorf((x + PLAYER_SPEED) / tileSize) + 1, mY)
-			&& !(!onGround && game.map->isSolid((int) floorf((x + PLAYER_SPEED) / tileSize) + 1, mY + 1))
+		if(!game.map->isSolid((int) floorf((pos.x + PLAYER_SPEED) / tileSize) + 1, m.y)
+			&& !(!onGround && game.map->isSolid((int) floorf((pos.x + PLAYER_SPEED) / tileSize) + 1, m.y + 1))
 			){
-			x += PLAYER_SPEED;
-		} else if(!game.map->isSolid(mX + 1, mY) //can snap?
-			&& !(!onGround && game.map->isSolid(mX + 1, mY + 1))
+			pos.x += PLAYER_SPEED;
+		} else if(!game.map->isSolid(m.x + 1, m.y) //can snap?
+			&& !(!onGround && game.map->isSolid(m.x + 1, m.y + 1))
 			){
-			x = x + (mX - (x / tileSize)) * tileSize +tileSize;
+			pos.x = pos.x + (m.x - (pos.x / tileSize)) * tileSize + tileSize;
 		}
 	} else if(key_states[SDL_SCANCODE_A]){
-		if(!game.map->isSolid((int) floorf((x - PLAYER_SPEED) / tileSize), mY)
-			&& !(!onGround && game.map->isSolid((int) floorf((x - PLAYER_SPEED) / tileSize), mY + 1))
+		if(!game.map->isSolid((int) floorf((pos.x - PLAYER_SPEED) / tileSize), m.y)
+			&& !(!onGround && game.map->isSolid((int) floorf((pos.x - PLAYER_SPEED) / tileSize), m.y + 1))
 			){
-			x -= PLAYER_SPEED;
+			pos.x -= PLAYER_SPEED;
 		} else{
-			x = x + (mX - (x / tileSize))*tileSize;
+			pos.x = pos.x + (m.x - (pos.x / tileSize))*tileSize;
 		}
 	}
-	mX = (int) floorf(x / tileSize);
+	m.x = (int) floorf(pos.x / tileSize);
 
-	float distanceToTileBoundary = (mY - y / tileSize)*tileSize;
-	if(!game.map->isSolid(mX, (int) floorf((y + yVel) / tileSize))
-		&& !(mX - (x / tileSize) != 0.f && game.map->isSolid(mX + 1, (int) floorf((y + yVel) / tileSize)))){
-		y += yVel;
+	float distanceToTileBoundary = (m.y - pos.y / tileSize)*tileSize;
+	if(!game.map->isSolid(m.x, (int) floorf((pos.y + yVel) / tileSize))
+		&& !(m.x - (pos.x / tileSize) != 0.f && game.map->isSolid(m.x + 1, (int) floorf((pos.y + yVel) / tileSize)))){
+		pos.y += yVel;
 	} else{
 		yVel = distanceToTileBoundary;
 	}
 
-	mY = (int) floorf(y / tileSize);
-	onGround = game.map->isSolid(mX, mY + 1) || (mX - (x / tileSize) != 0.f && game.map->isSolid(mX + 1, mY + 1));
-	bool mayBeOnGround = game.map->isSolid(mX, mY + 2) || (mX - (x / tileSize) != 0.f && game.map->isSolid(mX + 1, mY + 2));
-	distanceToTileBoundary = 32 + (mY - y / tileSize)*tileSize;
+	m.y = (int) floorf(pos.y / tileSize);
+	onGround = game.map->isSolid(m.x, m.y + 1) || (m.x - (pos.x / tileSize) != 0.f && game.map->isSolid(m.x + 1, m.y + 1));
+	bool mayBeOnGround = game.map->isSolid(m.x, m.y + 2) || (m.x - (pos.x / tileSize) != 0.f && game.map->isSolid(m.x + 1, m.y + 2));
+	distanceToTileBoundary = 32 + (m.y - pos.y / tileSize)*tileSize;
 
-	Block& b = game.map->world(mX, mY);
+	Block& b = game.map->world(m.x, m.y);
 
 	if(!onGround){// IN AIR (or water)
 		yVel += GRAVITY;
@@ -123,9 +121,9 @@ void Player::update(){//TODO: ugly, it still does not work ideally, but it works
 }
 
 void Player::render(){
-	const SDL_FRect dest = {x - game.cameraX + game.wWidth / 2, y - game.cameraY + game.wHeight / 2, tileSize, tileSize};
-	SDL_RenderTexture(game.renderer, game.tiles[Tile::PLAYER], &tileFRect, &dest);
-	const SDL_FRect breakBlk = {game.map->posX(breakX),game.map->posY(breakY),tileSize,tileSize};
+	const SDL_FRect dest = {pos.x - game.camera.x + game.wWidth / 2, pos.y - game.camera.y + game.wHeight / 2, tileSize, tileSize};
+	SDL_RenderTexture(game.renderer, game.tiles[(int) Tile::PLAYER], &tileFRect, &dest);
+	const SDL_FRect breakBlk = {game.map->posX(brokenBlock.x),game.map->posY(brokenBlock.y),tileSize,tileSize};
 	char p = (char) (((float) breakDurability / (float) breakMaxDurability) * 0xff);
 	SDL_SetRenderDrawColor(game.renderer,0,0,0,p);
 	SDL_RenderFillRect(game.renderer, &breakBlk);
@@ -141,7 +139,7 @@ void Player::render(){
 		}
 		if(inventory[i].type != Tile::UNKNOWN && inventory[i].count != 0){
 			const SDL_FRect itemRect = {game.wWidth / 2 - (INVENTORY_SIZE / 2.f - i) * tileSize * 3.f + tileSize / 2,game.wHeight - tileSize * 3.f + tileSize / 2, (float)tileSize, (float) tileSize};
-			SDL_RenderTexture(game.renderer, game.tiles[inventory[i].type], &tileFRect, &itemRect);
+			SDL_RenderTexture(game.renderer, game.tiles[(int) inventory[i].type], &tileFRect, &itemRect);
 			char string[4];
 			SDL_snprintf(string, sizeof(string), "%d", inventory[i].count);//TODO: max stack size (255)
 			TTF_SetTextString(game.text, string, 0);
@@ -154,21 +152,21 @@ void Player::render(){
 }
 
 void Player::save(std::ofstream& out) const{
-	write(out, &x);
-	write(out, &y);
+	write(out, &pos.x);
+	write(out, &pos.y);
 	write(out, &yVel);
 	write(out, &onGround);
 	write(out, &inventory);
 	write(out, &selectedSlot);
 	write(out, &breakDurability);
 	write(out, &breakMaxDurability);
-	write(out, &breakX);
-	write(out, &breakY);
+	write(out, &brokenBlock.x);
+	write(out, &brokenBlock.y);
 }
 
 void Player::load(std::ifstream& in){
-	read(in, &x);
-	read(in, &y);
+	read(in, &pos.x);
+	read(in, &pos.y);
 	read(in, &yVel);
 	read(in, &onGround);
 	read(in, &inventory);
@@ -176,6 +174,6 @@ void Player::load(std::ifstream& in){
 	lastPlaceTicks = 0;
 	read(in, &breakDurability);
 	read(in, &breakMaxDurability);
-	read(in, &breakX);
-	read(in, &breakY);
+	read(in, &brokenBlock.x);
+	read(in, &brokenBlock.y);
 }

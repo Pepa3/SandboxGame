@@ -3,9 +3,9 @@
 Map::Map(GameState& game):game(game){
 	chunks = std::unordered_map<uint32_t, Chunk*>();
 	const double n1 = perlin.noise2D(20 * 0.01, 1) * TERRAIN_STEEPNESS + 100;
-	player = std::make_unique<Player>(game, 20.f * tileSize, (float)tileSize*(((int)n1)-1));
-	game.cameraX = player->x;
-	game.cameraY = player->y;
+	player = std::make_unique<Player>(game, posWorld{20.f * tileSize, (float) tileSize * (((int) n1) - 1)});
+	game.camera.x = player->pos.x;
+	game.camera.y = player->pos.y;
 }
 
 Map::~Map(){
@@ -16,28 +16,26 @@ Map::~Map(){
 }
 
 inline float Map::posX(int x)const{
-	return tileSize * x - game.cameraX + game.wWidth / 2.f;
+	return tileSize * x - game.camera.x + game.wWidth / 2.f;
 }
 inline float Map::posY(int y)const{
-	return tileSize * y - game.cameraY + game.wHeight / 2.f;
+	return tileSize * y - game.camera.y + game.wHeight / 2.f;
 }
-int Map::tPosX(int x)const{
-	return (int) floorf((x + game.cameraX - game.wWidth / 2.f) / tileSize);
+inline int Map::tPosX(int x)const{
+	return (int) floorf((x + game.camera.x - game.wWidth / 2.f) / tileSize);
 }
-int Map::tPosY(int y)const{
-	return (int) floorf((y + game.cameraY - game.wHeight / 2.f) / tileSize);
+inline int Map::tPosY(int y)const{
+	return (int) floorf((y + game.camera.y - game.wHeight / 2.f) / tileSize);
 }
 inline constexpr uint32_t KEY(uint32_t high, uint32_t low){ return ((high << 16) | (low & 0xFFFF)); }
 
-inline Map::Chunk* Map::chunkAt(int x, int y){
-	short cx = (short) floorf(x / (float) chSize);
-	short cy = (short) floorf(y / (float) chSize);
-	uint32_t key = KEY(cx, cy);
+Map::Chunk* Map::chunkAt(posChunk p){
+	uint32_t key = KEY(p.x, p.y);
 	Chunk* ch;
 	try{
 		ch = chunks.at(key);
 	} catch(const std::out_of_range&){
-		ch = new Chunk(this, cx, cy);
+		ch = new Chunk(this, p);
 		ch->generate();
 		chunks.insert({key, ch});
 		game.countChunkGen++;
@@ -45,20 +43,19 @@ inline Map::Chunk* Map::chunkAt(int x, int y){
 	return ch;
 }
 
-inline bool Map::chunkExists(int x, int y)const{
-	uint32_t key = KEY(x, y);
+bool Map::chunkExists(posChunk p)const{
+	uint32_t key = KEY(p.x, p.y);
 	return chunks.contains(key);
 }
 
-inline Block& Map::world(int x, int y){
-	short cx = (short) floorf(x / (float) chSize);
-	short cy = (short) floorf(y / (float) chSize);
-	Chunk* ch = chunkAt(x, y);
-	return ch->data[(x - cx * chSize) + (y - cy * chSize) * chSize];
+Block& Map::world(posTile p){
+	posChunk pc = p;
+	Chunk* ch = chunkAt(pc);
+	return ch->data[(p.x - pc.x * chSize) + (p.y - pc.y * chSize) * chSize];
 }
 
-bool Map::isSolid(int x, int y){
-	return ::isSolid(world(x,y).t);
+bool Map::isSolid(posTile p){
+	return ::isSolid(world(p).t);
 }
 
 void Map::generateWorld(){
@@ -108,49 +105,32 @@ void Map::generateWorld(){
 			length += 1;
 		}
 	}
-	/*std::cout << "Shining light" << std::endl;
-	for(int i = -2; i <= 2; i++){
-		for(int j = -2; j <= 2; j++){
-			Chunk* ch = chunkAt(i*chSize, j*chSize);
-			for(int x = chSize - 1; x >= 0; x--){
-				for(int y = chSize - 1; y >= 0; y--){
-					ch->updateLight(x, y, false);
-				}
-			}
-			for(int x = 0; x < chSize; x++){
-				for(int y = 0; y < chSize; y++){
-					ch->updateLight(x, y, false);
-				}
-			}
-		}
-	}*/
 	std::cout << "Processing light updates" << std::endl;
 
 	int count = 0;
 	while(!lightUpdateQueue.empty()){
 		count++;
-		const auto [x, y, g] = lightUpdateQueue.front();
+		std::pair<posTile, bool>& t = lightUpdateQueue.front();
 		lightUpdateQueue.pop_front();
-		Chunk* ch = chunkAt(x, y);
-		short cx = (short) floorf((float) x / chSize);
-		short cy = (short) floorf((float) y / chSize);
-		ch->updateLight(x - cx * chSize, y - cy * chSize, g);
+		posChunk pc = t.first;
+		Chunk* ch = chunkAt(pc);
+		ch->updateLight(t.first-pc, t.second);
 	}
 	std::cout << "World generation updated light " << count << " times.\n" << std::endl;
 }
 
-Map::Chunk::Chunk(Map* map, short x, short y) :x(x), y(y), map(map){
-	std::cout << "Created chunk [" << x << "][" << y << "]:\""<< KEY(x,y) << "\"" << std::endl;
+Map::Chunk::Chunk(Map* map, posChunk p) :pos(p), map(map){
+	std::cout << "Created chunk [" << p.x << "][" << p.y << "]:\""<< KEY(p.x,p.y) << "\"" << std::endl;
 	for(size_t i = 0; i < chSize*chSize; i++){
 		data[i] = Block();//No init, leave Tile::UNKNOWN
 	}
 }
 
 void Map::Chunk::generate(){
-	int gx = x * chSize;
-	int gy = y * chSize;
+	int gx = pos.x * chSize;
+	int gy = pos.y * chSize;
 	constexpr int height = 100;
-	std::mt19937 rng(seed * seed + x + y * seed);
+	std::mt19937 rng(seed * seed + pos.x + pos.y * seed);
 	int treeHeight = (int) (perlin.noise2D((gx + chSize / 2) * 0.01, 1) * TERRAIN_STEEPNESS) + height;
 	for(int i = 0; i < chSize; i++){
 		const int n1 = (int)(perlin.noise2D((gx+i) * 0.01, 1) * TERRAIN_STEEPNESS) + height;
@@ -170,28 +150,36 @@ void Map::Chunk::generate(){
 			else if(j+gy<n1+dirtHeight)data[i + j * chSize] = Block(Tile::DIRT,Tile::DIRT, 0);
 			else{
 				std::uniform_int_distribution<> dist(0, 10000);
-				bool ore = dist(rng) > 9990;
-				if(ore){
+				bool oreG = dist(rng) > 9990;
+				bool oreC = dist(rng) > 9990;
+				if(oreG){
 					data[i + j * chSize] = Block(Tile::GLOW, Tile::STONE, 0);
 					data[i + j * chSize].lightSource = true;
-				} else{
+				}else if(oreC){
+					data[i + j * chSize] = Block(Tile::COAL, Tile::STONE, 0);
+				}else{
 					data[i + j * chSize] = Block(Tile::STONE, Tile::STONE, 0);
 				}
 			}
 		}
 	}
 	short treeY = (short) floorf(treeHeight / (float) chSize);
-	if(treeY == y && treeHeight <= height)generateTree(chSize / 2, treeHeight - gy);
+	if(treeY == pos.y && treeHeight <= height)generateTree(chSize / 2, treeHeight - gy);
 	for(int x = 0; x < chSize; x++){
 		for(int y = 0; y < chSize; y++){
+			updateLight(x, y, true);
+		}
+	}
+	for(int x = chSize-1; x >= 0; x--){
+		for(int y = chSize-1; y >= 0; y--){
 			updateLight(x, y, true);
 		}
 	}
 }
 
 void Map::Chunk::generateTree(int tx, int ty){
-	int mx = x * chSize;
-	int my = y * chSize;
+	int mx = pos.x * chSize;
+	int my = pos.y * chSize;
 	for(int i = 0; i < 6; i++){
 		if(ty - i >= 0){
 			data[tx + (ty - i) * chSize] = Block(Tile::WOOD, Tile::AIR, 0);
@@ -229,19 +217,19 @@ void Map::Chunk::update(){
 			if(b.t == Tile::SAND){
 				Block& under = (j < chSize - 1)
 					? data[i + (j + 1) * chSize]
-					: map->world(x * chSize + i, y * chSize + j + 1);
+					: map->world(pos.x * chSize + i, pos.y * chSize + j + 1);
 				if(under.t == Tile::AIR){
 					Block tmp = b;
 					b = Block(under.t, b.bg, under.fluid, 0);
 					under = Block(tmp.t, under.bg, tmp.fluid, tmp.light);
-					map->updateLight(x * chSize + i, y * chSize + j, false);
+					map->updateLight(pos.x * chSize + i, pos.y * chSize + j, false);
 				}
 			}
 			float& fl1 = b.fluid;
 			if(fl1 > 0){
 				Block& under = (j < chSize - 1)
 					? data[i + (j + 1) * chSize]
-					: map->world(x * chSize + i, y * chSize + j + 1);
+					: map->world(pos.x * chSize + i, pos.y * chSize + j + 1);
 				float& flu = under.fluid;
 				if(!::isSolid(under.t)){
 					float fl = fl1 + flu;
@@ -261,10 +249,10 @@ void Map::Chunk::update(){
 					//Spill horizontally
 					Block& left = (i > 0)
 						? data[i - 1 + j * chSize]
-						: map->world(x * chSize + i - 1, y * chSize + j);
+						: map->world(pos.x * chSize + i - 1, pos.y * chSize + j);
 					Block& right = (i < chSize - 1)
 						? data[i + 1 + j * chSize]
-						: map->world(x * chSize + i + 1, y * chSize + j);
+						: map->world(pos.x * chSize + i + 1, pos.y * chSize + j);
 					float fldl = fl1 - left.fluid;
 					if(!::isSolid(left.t) && fldl > 0){
 						fl1 -= fldl / 2;
@@ -280,7 +268,7 @@ void Map::Chunk::update(){
 					//Propagate up if high pressure
 					Block& up = (j > 0)
 						? data[i + (j - 1) * chSize]
-						: map->world(x * chSize + i, y * chSize + j - 1);
+						: map->world(pos.x * chSize + i, pos.y * chSize + j - 1);
 					if(!::isSolid(up.t) && up.fluid == 0){
 						float fld = fl1 - 1;
 						fl1 -= fld / 2;
@@ -292,9 +280,9 @@ void Map::Chunk::update(){
 	}
 }
 
-void Map::updateLight(int x, int y, bool genStep){
-	std::tuple<int,int,bool> p = {x,y, genStep};
-	Block& b = world(x, y);
+void Map::updateLight(posTile pos, bool genStep){
+	std::pair<posTile, bool> p = {pos, genStep};
+	Block& b = world(pos);
 	if(!b.hasScheduledLightUpdate){
 		lightUpdateQueue.push_back(p);
 		game.countLightUpdates = lightUpdateQueue.size();
@@ -312,16 +300,16 @@ void Map::Chunk::updateLight(int i, int j, bool genStep){
 	c.hasScheduledLightUpdate = false;
 	const Block l = (i > 0)
 		? data[i - 1 + j * chSize]
-		: (genStep && !map->chunkExists(x - 1, y) ? Block() : map->world(x * chSize + i - 1, y * chSize + j));
+		: (genStep && !map->chunkExists(pos.x - 1, pos.y) ? Block() : map->world(pos.x * chSize + i - 1, pos.y * chSize + j));
 	const Block r = (i < chSize - 1)
 		? data[i + 1 + j * chSize]
-		: (genStep && !map->chunkExists(x + 1, y) ? Block() : map->world(x * chSize + i + 1, y * chSize + j));
+		: (genStep && !map->chunkExists(pos.x + 1, pos.y) ? Block() : map->world(pos.x * chSize + i + 1, pos.y * chSize + j));
 	const Block u = (j > 0)
 		? data[i + (j - 1) * chSize]
-		: (genStep && !map->chunkExists(x, y - 1) ? Block() : map->world(x * chSize + i, y * chSize + j - 1));
+		: (genStep && !map->chunkExists(pos.x, pos.y - 1) ? Block() : map->world(pos.x * chSize + i, pos.y * chSize + j - 1));
 	const Block d = (j < chSize - 1)
 		? data[i + (j + 1) * chSize]
-		: (genStep && !map->chunkExists(x, y + 1) ? Block() : map->world(x * chSize + i, y * chSize + j + 1));
+		: (genStep && !map->chunkExists(pos.x, pos.y + 1) ? Block() : map->world(pos.x * chSize + i, pos.y * chSize + j + 1));
 	if(!(genStep && j==0) && c.t==Tile::AIR){
 		c.skyView = u.skyView;
 	}
@@ -341,43 +329,43 @@ void Map::Chunk::updateLight(int i, int j, bool genStep){
 	c.light = lgt;
 
 	if(!genStep && lightChanged){
-		map->updateLight(x * chSize + i, y * chSize + j - 1);
-		map->updateLight(x * chSize + i, y * chSize + j + 1);
-		map->updateLight(x * chSize + i - 1, y * chSize + j);
-		map->updateLight(x * chSize + i + 1, y * chSize + j);
+		map->updateLight(pos.x * chSize + i, pos.y * chSize + j - 1);
+		map->updateLight(pos.x * chSize + i, pos.y * chSize + j + 1);
+		map->updateLight(pos.x * chSize + i - 1, pos.y * chSize + j);
+		map->updateLight(pos.x * chSize + i + 1, pos.y * chSize + j);
 		return;//skip neighbor check
 	} else if(genStep && lightChanged){	
 		//schedule light updates in generated neighboring chunk borders, to process light from this chunk
-		if(i == 0 && map->chunkExists(x - 1, y)) map->updateLight(x * chSize + i - 1, y * chSize + j, false);
-		if(i == chSize - 1 && map->chunkExists(x + 1, y)) map->updateLight(x * chSize + i + 1, y * chSize + j, false);
-		if(j == 0 && map->chunkExists(x, y - 1)) map->updateLight(x * chSize + i, y * chSize + j - 1, false);
-		if(j == chSize - 1 && map->chunkExists(x, y + 1)) map->updateLight(x * chSize + i, y * chSize + j + 1, false);
+		if(i == 0 && map->chunkExists(pos.x - 1, pos.y)) map->updateLight(pos.x * chSize + i - 1, pos.y * chSize + j, false);
+		if(i == chSize - 1 && map->chunkExists(pos.x + 1, pos.y)) map->updateLight(pos.x * chSize + i + 1, pos.y * chSize + j, false);
+		if(j == 0 && map->chunkExists(pos.x, pos.y - 1)) map->updateLight(pos.x * chSize + i, pos.y * chSize + j - 1, false);
+		if(j == chSize - 1 && map->chunkExists(pos.x, pos.y + 1)) map->updateLight(pos.x * chSize + i, pos.y * chSize + j + 1, false);
 	}
 
 	if(!genStep && !lightChanged){
 		char ldu = (char) fabs(c.light - u.light);
 		if(::isSolid(u.t)){
-			if(ldu > lightFalloff * 4)map->updateLight(x * chSize + i, y * chSize + j - 1);
+			if(ldu > lightFalloff * 4)map->updateLight(pos.x * chSize + i, pos.y * chSize + j - 1);
 		} else{
-			if(ldu > lightFalloff)map->updateLight(x * chSize + i, y * chSize + j - 1);
+			if(ldu > lightFalloff)map->updateLight(pos.x * chSize + i, pos.y * chSize + j - 1);
 		}
 		char ldd = (char) fabs(c.light - d.light);
 		if(::isSolid(d.t)){
-			if(ldd > lightFalloff * 4)map->updateLight(x * chSize + i, y * chSize + j + 1);
+			if(ldd > lightFalloff * 4)map->updateLight(pos.x * chSize + i, pos.y * chSize + j + 1);
 		} else{
-			if(ldd > lightFalloff)map->updateLight(x * chSize + i, y * chSize + j + 1);
+			if(ldd > lightFalloff)map->updateLight(pos.x * chSize + i, pos.y * chSize + j + 1);
 		}
 		char ldl = (char) fabs(c.light - l.light);
 		if(::isSolid(l.t)){
-			if(ldl > lightFalloff * 4)map->updateLight(x * chSize + i - 1, y * chSize + j);
+			if(ldl > lightFalloff * 4)map->updateLight(pos.x * chSize + i - 1, pos.y * chSize + j);
 		} else{
-			if(ldl > lightFalloff)map->updateLight(x * chSize + i - 1, y * chSize + j);
+			if(ldl > lightFalloff)map->updateLight(pos.x * chSize + i - 1, pos.y * chSize + j);
 		}
 		char ldr = (char) fabs(c.light - r.light);
 		if(::isSolid(r.t)){
-			if(ldr > lightFalloff * 4)map->updateLight(x * chSize + i + 1, y * chSize + j);
+			if(ldr > lightFalloff * 4)map->updateLight(pos.x * chSize + i + 1, pos.y * chSize + j);
 		} else{
-			if(ldr > lightFalloff)map->updateLight(x * chSize + i + 1, y * chSize + j);
+			if(ldr > lightFalloff)map->updateLight(pos.x * chSize + i + 1, pos.y * chSize + j);
 		}
 	}
 }
@@ -413,47 +401,45 @@ bool Map::place(int x, int y, Tile t){
 	return true;
 }
 
-Block Map::destroy(int x, int y){
-	Block& b = world(x, y);
+Block Map::destroy(posTile p, Tool tool){
+	Block& b = world(p);
 	if(!::isSolid(b.t))return nullBlock;
 	Block c = b;
-	c.t = destroyResult(c.t);
+	c.t = destroyResult(c.t, tool);
 	b.t = Tile::AIR;
-	updateLight(x, y);
+	updateLight(p);
 	return c;
 }
 
 
 void Map::update(){
 	game.countLightUpdates = lightUpdateQueue.size();
-	short px = (short) floorf(player->x / tileSize);
-	short py = (short) floorf(player->y / tileSize);
+	posChunk ppc = player->pos;
 	for(int i = -UPDATE_RADIUS; i <= UPDATE_RADIUS; i++){
 		for(int j = -UPDATE_RADIUS; j <= UPDATE_RADIUS; j++){
-			Chunk* ch = chunkAt(px+i*chSize,py+j*chSize);
+			Chunk* ch = chunkAt(ppc.x+i,ppc.y+j);
 			ch->update();
 		}
 	}
 	int count = 0;
 	while(!lightUpdateQueue.empty() && count++ < maxlightUpdateCount){
-		const auto [x,y,g] = lightUpdateQueue.front();
+		const auto [p,g] = lightUpdateQueue.front();
 		lightUpdateQueue.pop_front();
-		Chunk* ch = chunkAt(x,y);
-		short cx = (short) floorf((float) x / chSize);
-		short cy = (short) floorf((float) y / chSize);
-		ch->updateLight(x-cx*chSize,y-cy*chSize,g);
+		posChunk pc = p;
+		Chunk* ch = chunkAt(pc);
+		ch->updateLight(p-pc,g);
 	}
 	player->update();
 }
 
 void Map::render(){
-	game.cameraX += (player->x - game.cameraX + tileSize / 2) / 10;
-	game.cameraY += (player->y - game.cameraY + tileSize / 2) / 10;
+	game.camera.x += (player->pos.x - game.camera.x + tileSize / 2) / 10;
+	game.camera.y += (player->pos.y - game.camera.y + tileSize / 2) / 10;
 
-	int beginX = (int) (game.cameraX - game.wWidth / 2) / tileSize-1;
-	int beginY = (int) (game.cameraY - game.wHeight / 2) / tileSize-1;
-	int endX = (int) (game.cameraX + game.wWidth / 2) / tileSize+1;
-	int endY = (int) (game.cameraY + game.wHeight / 2) / tileSize+1;
+	int beginX = (int) (game.camera.x - game.wWidth / 2) / tileSize-1;
+	int beginY = (int) (game.camera.y - game.wHeight / 2) / tileSize-1;
+	int endX = (int) (game.camera.x + game.wWidth / 2) / tileSize+1;
+	int endY = (int) (game.camera.y + game.wHeight / 2) / tileSize+1;
 	int chBeginX = (int) floorf((float) beginX / chSize);
 	int chBeginY = (int) floorf((float) beginY / chSize);
 	int chEndX = (int) floorf((float) endX / chSize);
@@ -464,7 +450,7 @@ void Map::render(){
 		for(int cy = chBeginY; cy <= chEndY; cy++){
 			int by = cy == chBeginY ? beginY - chBeginY * chSize : 0;
 			int ey = cy == chEndY ? endY - chEndY * chSize : chSize - 1;
-			Chunk* ch = chunkAt(cx*chSize,cy*chSize);
+			Chunk* ch = chunkAt(cx,cy);
 			for(int lx = bx; lx <= ex; lx++){
 				for(int ly = by; ly <= ey; ly++){
 					int x = lx + cx * chSize;
@@ -472,12 +458,12 @@ void Map::render(){
 					Block& b = ch->data[lx + ly * chSize];
 					const SDL_FRect dest = {posX(x),posY(y),tileSize,tileSize};
 					if(::hasBackground(b.t) && b.bg != Tile::AIR){
-						SDL_RenderTexture(game.renderer, game.tiles[b.bg], &tileFRect, &dest);
+						SDL_RenderTexture(game.renderer, game.tiles[(int) b.bg], &tileFRect, &dest);
 						const SDL_FRect shadowRect = {posX(x),posY(y),(float) tileSize,(float) tileSize};
 						SDL_SetRenderDrawColor(game.renderer, 0, 0, 0, 0x55);
 						SDL_RenderFillRect(game.renderer, &shadowRect);
 					} else{
-						SDL_RenderTexture(game.renderer, game.tiles[b.t], &tileFRect, &dest);
+						SDL_RenderTexture(game.renderer, game.tiles[(int) b.t], &tileFRect, &dest);
 					}
 					if(b.fluid > 0){
 						const SDL_FRect fluidRect = {posX(x),posY(y) + tileSize * (1 - fminf(b.fluid,1)),(float) tileSize,tileSize * fminf(b.fluid,1)};
@@ -515,16 +501,16 @@ void Map::render(){
 	SDL_SetRenderDrawColor(game.renderer,0,0,0,0xff);
 	SDL_RenderRect(game.renderer, &cursorRect);
 	if(game.debugMode){
-		Chunk* ch = chunkAt((int)player->x / tileSize, (int)player->y / tileSize);
-		const SDL_FRect chunkRect = {posX(ch->x*chSize), posY(ch->y*chSize),chSize*tileSize,chSize*tileSize};
+		Chunk* ch = chunkAt(player->pos);
+		const SDL_FRect chunkRect = {posX(ch->pos.x*chSize), posY(ch->pos.y*chSize),chSize*tileSize,chSize*tileSize};
 		SDL_SetRenderDrawColor(game.renderer, 0, 0, 0xff, 0xff);
 		SDL_RenderRect(game.renderer, &chunkRect);
 		Chunk* ch2 = chunkAt(chBeginX, chBeginY);
-		const SDL_FRect chunkRect2 = {posX(ch2->x * chSize), posY(ch2->y * chSize),chSize * tileSize,chSize * tileSize};
+		const SDL_FRect chunkRect2 = {posX(ch2->pos.x * chSize), posY(ch2->pos.y * chSize),chSize * tileSize,chSize * tileSize};
 		SDL_SetRenderDrawColor(game.renderer, 0, 0xff, 0xff, 0xff);
 		SDL_RenderRect(game.renderer, &chunkRect2);
 		Chunk* ch3 = chunkAt(chEndX, chEndY);
-		const SDL_FRect chunkRect3 = {posX(ch3->x * chSize), posY(ch3->y * chSize),chSize * tileSize,chSize * tileSize};
+		const SDL_FRect chunkRect3 = {posX(ch3->pos.x * chSize), posY(ch3->pos.y * chSize),chSize * tileSize,chSize * tileSize};
 		SDL_SetRenderDrawColor(game.renderer, 0xff, 0, 0xff, 0xff);
 		SDL_RenderRect(game.renderer, &chunkRect3);
 	}
@@ -556,8 +542,8 @@ bool Map::load(const std::string& file){
 		return false;
 	}
 	player.get()->load(in);
-	game.cameraX = player->x;
-	game.cameraY = player->y;
+	game.camera.x = player->pos.x;
+	game.camera.y = player->pos.y;
 	int tmpChSize;
 	uint32_t tmpCount;
 	read(in, &tmpChSize);
@@ -570,7 +556,7 @@ bool Map::load(const std::string& file){
 	for(size_t i = 0; i < tmpCount; i++){
 		Chunk* ch = new Chunk(this);
 		ch->load(in);
-		chunks[KEY(ch->x, ch->y)] = ch;
+		chunks[KEY(ch->pos.x, ch->pos.y)] = ch;
 	}
 	in.close();
 	std::cout << "Loaded from " << file << std::endl;
@@ -578,12 +564,12 @@ bool Map::load(const std::string& file){
 }
 
 void Map::Chunk::save(std::ofstream& out) const{
-	write(out, &x);
-	write(out, &y);
+	write(out, &pos.x);
+	write(out, &pos.y);
 	write(out, &data);
 }
 void Map::Chunk::load(std::ifstream& in){
-	read(in, &x);
-	read(in, &y);
+	read(in, &pos.x);
+	read(in, &pos.y);
 	read(in, &data);
 }
