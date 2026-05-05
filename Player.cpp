@@ -3,7 +3,7 @@
 
 Player::Player(GameState& game, posWorld p) :pos(p), game(game){}
 
-bool Player::addInventory(Block b){
+bool Player::addInventory(Block b)noexcept{
 	for(uint8_t i = 0; i < INVENTORY_SIZE; i++){
 		if(inventory[i].type == b.t){
 			inventory[i].count++;
@@ -25,8 +25,8 @@ void Player::update(){//TODO: ugly, it still does not work ideally, but it works
 
 	float mox, moy;
 	int button = SDL_GetMouseState(&mox, &moy);
-	int tx = game.map->tPosX((int) mox);
-	int ty = game.map->tPosY((int) moy);
+	int tx = game.map->tPosX(mox);
+	int ty = game.map->tPosY(moy);
 	if(brokenBlock.x != tx || brokenBlock.y != ty){
 		breakDurability = 0;
 		breakMaxDurability = durability(game.map->world(tx,ty).t);
@@ -145,7 +145,7 @@ void Player::render(){
 			TTF_SetTextString(game.text, string, 0);
 			int w = 0;
 			TTF_MeasureString(game.font, string, 2, 0, &w, nullptr);
-			TTF_DrawRendererText(game.text, itemRect.x+tileSize/2-w/2, itemRect.y + tileSize*3/2);
+			TTF_DrawRendererText(game.text, itemRect.x+tileSize/2-w/2.f, itemRect.y + tileSize*3/2);
 			
 		}
 	}

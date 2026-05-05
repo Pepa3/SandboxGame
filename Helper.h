@@ -1,4 +1,3 @@
-#pragma once
 #define SDL_MAIN_USE_CALLBACKS
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_surface.h>
@@ -32,7 +31,7 @@ constexpr int UPDATE_RADIUS = 3;
 constexpr int tileSize = 32;
 constexpr int chSize = 50;
 constexpr int dirtHeight = 5;
-constexpr int lightFalloff = 2;
+constexpr char lightFalloff = 2;
 constexpr int caveCount = 7;
 constexpr int caveDistance = 40;
 constexpr int maxlightUpdateCount = 500;
@@ -43,8 +42,9 @@ constexpr size_t tileMapWidth = 10, tileMapHeight = 10;
 constexpr size_t TERRAIN_STEEPNESS = 80;
 constexpr SDL_Rect tileRect = {0,0,tileSize,tileSize};
 constexpr SDL_FRect tileFRect = {0,0,tileSize,tileSize};
-constexpr const siv::PerlinNoise::seed_type seed = 19254792u;
-const siv::PerlinNoise perlin{seed};
+constexpr size_t map_seed = 19254792u;
+//constexpr uint32_t map_seed = 1546916105u;
+const siv::BasicPerlinNoise<float> perlin{map_seed};
 
 /*
 * TYPE DEFINITIONS
@@ -53,29 +53,49 @@ const siv::PerlinNoise perlin{seed};
 template<typename S>
 concept scalar = std::is_scalar_v<S>;
 
-template<scalar T, T R>
+template<scalar T, int R>
 class position{
 public:
 	T x, y;
-	position(T x, T y) :x(x), y(y){};
-	template<scalar U, U S>
-	operator const position<U, S>()const{
+	position(T x, T y) noexcept :x(x), y(y) {} ;
+	template<scalar U, int S>
+	operator const position<U, S>()const noexcept{
 		if constexpr(R<S)
-			return position<U, S>((U) floor((x * R) / (double)S), (U) floor((y * R) / (double)S));
+			return position<U, S>((U)(floor((x * (T)R) / (double)S)), (U)(floor((y * (T)R) / (double)S)));
 		else
-			return position<U, S>((U) ((x * R) / (double) S), (U) ((y * R) / (double) S));
+			return position<U, S>((U)((x * (T)R) / S), (U)((y * (T)R) / S));
 	}
-	position<T, R> operator-(const position<T, R>& p)const{
+	position<T, R> operator-(const position<T, R>& p)const noexcept{
 		return {x - p.x,y - p.y};
 	}
-	position<T, R> operator+(const position<T, R>& p)const{
+	position<T, R> operator+(const position<T, R>& p)const noexcept{
 		return {x + p.x,y + p.y};
 	}
 };
 
-using posWorld = position<float, 1.0f>;
+using posWorld = position<float, 1>;
 using posTile = position<int, tileSize>;
 using posChunk = position<short, tileSize*chSize>;
+
+template<class T>
+concept writable = not requires(const T & t, std::ofstream & o){
+	t.save(o);
+}and std::is_default_constructible_v<T>;
+template<class T>
+concept readable = not requires(T & t, std::ifstream & i){
+	t.load(i);
+}and std::is_default_constructible_v<T>;
+template<writable T>
+void write(std::ofstream& out, const T* t){
+	out.write(reinterpret_cast<const char*>(t), sizeof(T));
+}
+template<readable T>
+void read(std::ifstream& in, T* t){
+	in.read(reinterpret_cast<char*>(t), sizeof(T));
+}
+
+inline char lfmax(char a, char b)noexcept{ return (char) (fmax(a, b)); };
+inline char lfabs(char a)noexcept{ return (char) (fabs(a)); };
 
 enum class Tile :uint8_t{
 	UNKNOWN = 0, AIR = 1, DIRT = 2, STONE = 3, WOOD = 4, SAND = 5, LEAVES=6, GRASS=7, PLAYER=10, GLOW=13, COAL=14
@@ -83,80 +103,16 @@ enum class Tile :uint8_t{
 enum class Tool :uint8_t{
 	HAND,PICKAXE
 };
-constexpr bool isSolid(Tile t){
-	switch(t){
-	case Tile::AIR:
-	case Tile::LEAVES:
-		return false;
-	default:
-		return true;
-	}
-}
-constexpr bool hasBackground(Tile t){
-	switch(t){
-	case Tile::AIR:
-		return true;
-	default:
-		return false;
-	}
-}
-constexpr Tile destroyResult(Tile t, Tool l){
-	if(l == Tool::HAND){
-		switch(t){
-		case Tile::DIRT:
-		case Tile::GRASS:
-			return Tile::DIRT;
-		case Tile::WOOD:
-			return Tile::WOOD;
-		case Tile::SAND:
-			return Tile::SAND;
-		default:
-			return Tile::AIR;
-		}
-	} else if(l == Tool::PICKAXE){
-		switch(t){
-		case Tile::DIRT:
-		case Tile::GRASS:
-			return Tile::DIRT;
-		case Tile::SAND:
-			return Tile::SAND;
-		case Tile::COAL:
-			return Tile::COAL;
-		case Tile::GLOW:
-			return Tile::GLOW;
-		case Tile::STONE:
-			return Tile::STONE;
-		default:
-			return Tile::AIR;
-		}
-	} else{
-		assert(false && "Unknown tool");
-		return Tile::UNKNOWN;
-	}
-}
-constexpr int durability(Tile t){
-	switch(t){
-	case Tile::SAND:
-		return 10;
-	case Tile::GRASS:
-	case Tile::DIRT:
-	case Tile::WOOD:
-		return 20;
-	case Tile::STONE:
-	case Tile::GLOW:
-	case Tile::COAL:
-		return 100;
-	default:
-		return 1;
-	}
-}
+bool isSolid(Tile t);
+bool hasBackground(Tile t);
+Tile destroyResult(Tile t, Tool l);
+int durability(Tile t);
 
 /*
 * CLASS DEFINITIONS
 */
 class Map;
 class Player;
-class Block;
 struct GameState;
 
 class Block{
@@ -190,11 +146,10 @@ public:
 		void load(std::ifstream& in);
 	private:
 		posChunk pos;
-		Block data[chSize * chSize];
+		std::array<Block, chSize* chSize> data{};
 		Map* map;
 	};
 	Map(GameState& game);
-	~Map();
 	void generateWorld();
 	void update();
 	void updateLight(posTile p, bool genStep = false);
@@ -203,17 +158,17 @@ public:
 	bool save(const std::string& file)const;
 	bool load(const std::string& file);
 	//void handleKeyDown(char key);
-	void handleMouseWheel(SDL_MouseWheelEvent event);
+	void handleMouseWheel(SDL_MouseWheelEvent event) noexcept;
 	bool place(int x, int y, Tile t);
 	inline bool place(posTile p, Tile t){ return place(p.x, p.y, t); }
 	Block destroy(posTile p, Tool tool);
 	inline Block destroy(int x, int y, Tool tool){ return destroy({x,y}, tool); }
 	bool isSolid(posTile p);
 	inline bool isSolid(int x, int y){ return isSolid({x,y}); }
-	inline int tPosX(int x)const;
-	inline int tPosY(int y)const;
-	inline float posX(int x)const;
-	inline float posY(int y)const;
+	int tPosX(float x)const noexcept;
+	int tPosY(float y)const noexcept;
+	float posX(int x)const noexcept;
+	float posY(int y)const noexcept;
 	Block& world(posTile p);
 	inline Block& world(int x, int y){ return world({x,y}); }
 	Chunk* chunkAt(posChunk p);
@@ -224,7 +179,7 @@ public:
 private:
 	GameState& game;
 	std::unique_ptr<Player> player;
-	std::unordered_map<uint32_t, Chunk*> chunks;
+	std::unordered_map<uint32_t, std::unique_ptr<Chunk>> chunks;
 	std::deque<std::pair<posTile, bool>> lightUpdateQueue;
 };
 
@@ -236,7 +191,7 @@ public:
 	void update();
 	void save(std::ofstream& out) const;
 	void load(std::ifstream& in);
-	bool addInventory(Block b);
+	bool addInventory(Block b)noexcept;
 private:
 	posWorld pos;
 	float yVel = 0.f;
@@ -258,13 +213,13 @@ private:
 */
 constexpr Block nullBlock = Block(Tile::UNKNOWN, Tile::UNKNOWN);
 struct GameState{
-	size_t wWidth, wHeight;
-	SDL_Window* window;
-	SDL_Renderer* renderer;
-	TTF_Font* font;
-	TTF_TextEngine* engine;
-	TTF_Text* text;
-	SDL_Texture* tiles[0xff];
+	size_t wWidth = 0, wHeight = 0;
+	SDL_Window* window = nullptr;
+	SDL_Renderer* renderer = nullptr;
+	TTF_Font* font = nullptr;
+	TTF_TextEngine* engine = nullptr;
+	TTF_Text* text = nullptr;
+	std::array<SDL_Texture*, 0xff> tiles = std::array<SDL_Texture*, 0xff>();
 	posWorld camera{0,0};
 	std::unique_ptr<Map> map;
 	bool overlayFluid = false;
@@ -280,20 +235,3 @@ struct GameState{
 
 int SDL_RenderCircle(SDL_Renderer* renderer, float x, float y, int radius);
 int SDL_RenderFillCircle(SDL_Renderer* renderer, float x, float y, int radius);
-
-template<class T>
-concept writable = not requires(const T& t, std::ofstream & o){
-	t.save(o);
-} and std::is_default_constructible_v<T>;
-template<class T>
-concept readable = not requires(T& t, std::ifstream & i){
-	t.load(i);
-} and std::is_default_constructible_v<T>;
-template<writable T>
-void write(std::ofstream& out, const T* t){
-	out.write((char*) t, sizeof(T));
-}
-template<readable T>
-void read(std::ifstream& in, T* t){
-	in.read((char*) t, sizeof(T));
-}

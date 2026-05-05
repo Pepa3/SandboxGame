@@ -94,7 +94,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv){
 SDL_AppResult SDL_AppIterate(void* appstate){
 	frames++;
 
-	uint64_t t = SDL_GetTicks();
+	const uint64_t t = SDL_GetTicks();
 	if(t - lastUpdateTicks >= minUpdateTimeMillis){
 		lastUpdateTicks=t;
 		game.map->update();
@@ -106,9 +106,10 @@ SDL_AppResult SDL_AppIterate(void* appstate){
 
 	game.map->render();
 	//"\0" "FPS:" "60.00" " LU:" "9999" " CG:" "999"
-	static char string[1+4+5+4+4+4+3];
+	//[sizeof("FPS:60.00 LU:1000 CG:300\0")]
+	static char string[sizeof("FPS:60.00 LU:1000 CG:300\0")];
 	if(lastFPSTime + 1000 <= SDL_GetTicks()){
-		SDL_snprintf(string, sizeof(string), "FPS:%.2f LU:%d CG:%d", frames/(double)(SDL_GetTicks()-lastFPSTime)*1000.f, game.countLightUpdates, game.countChunkGen);
+		SDL_snprintf(string, sizeof(string), "FPS:%.2f LU:%d CG:%d", frames / (double) (SDL_GetTicks() - lastFPSTime) * 1000.f, game.countLightUpdates, game.countChunkGen);
 		lastFPSTime = SDL_GetTicks();
 		frames = 0;
 	}
@@ -119,12 +120,12 @@ SDL_AppResult SDL_AppIterate(void* appstate){
 
 	return SDL_APP_CONTINUE;
 }
-
+#pragma warning(suppress: 26461)
 SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event){
 	if(event->type == SDL_EVENT_QUIT){
 		return SDL_APP_SUCCESS;
 	} else if(event->type == SDL_EVENT_KEY_DOWN){
-		char key = event->key.key;
+		const char key = event->key.key;
 		//game.map.handleKeyDown(key);
 		switch(key){
 		case SDLK_ESCAPE:
