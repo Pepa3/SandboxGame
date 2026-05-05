@@ -24,9 +24,9 @@ void Player::update(){//TODO: ugly, it still does not work ideally, but it works
 	const bool* key_states = SDL_GetKeyboardState(NULL);
 
 	float mox, moy;
-	int button = SDL_GetMouseState(&mox, &moy);
-	int tx = game.map->tPosX(mox);
-	int ty = game.map->tPosY(moy);
+	const int button = SDL_GetMouseState(&mox, &moy);
+	const int tx = game.map->tPosX(mox);
+	const int ty = game.map->tPosY(moy);
 	if(brokenBlock.x != tx || brokenBlock.y != ty){
 		breakDurability = 0;
 		breakMaxDurability = durability(game.map->world(tx,ty).t);
@@ -47,12 +47,12 @@ void Player::update(){//TODO: ugly, it still does not work ideally, but it works
 			}
 		}
 	} else if(button & SDL_BUTTON_LMASK){
-		Block& b = game.map->world(tx, ty);
+		const Block& b = game.map->world(tx, ty);
 		if(isSolid(b.t)){
 			breakDurability++;
 			if(game.debugMode || breakDurability >= breakMaxDurability){
 				breakDurability = 0;
-				Block d = game.map->destroy(tx, ty, Tool::HAND);
+				const Block d = game.map->destroy(tx, ty, Tool::HAND);
 				if(d.t!=Tile::AIR && !addInventory(d)){
 					std::cout << "No space in inventory!" << std::endl;
 				}
@@ -96,10 +96,10 @@ void Player::update(){//TODO: ugly, it still does not work ideally, but it works
 
 	m.y = (int) floorf(pos.y / tileSize);
 	onGround = game.map->isSolid(m.x, m.y + 1) || (m.x - (pos.x / tileSize) != 0.f && game.map->isSolid(m.x + 1, m.y + 1));
-	bool mayBeOnGround = game.map->isSolid(m.x, m.y + 2) || (m.x - (pos.x / tileSize) != 0.f && game.map->isSolid(m.x + 1, m.y + 2));
+	const bool mayBeOnGround = game.map->isSolid(m.x, m.y + 2) || (m.x - (pos.x / tileSize) != 0.f && game.map->isSolid(m.x + 1, m.y + 2));
 	distanceToTileBoundary = 32 + (m.y - pos.y / tileSize)*tileSize;
 
-	Block& b = game.map->world(m.x, m.y);
+	const Block& b = game.map->world(m.x, m.y);
 
 	if(!onGround){// IN AIR (or water)
 		yVel += GRAVITY;
@@ -120,11 +120,11 @@ void Player::update(){//TODO: ugly, it still does not work ideally, but it works
 	}
 }
 
-void Player::render(){
+void Player::render()noexcept{
 	const SDL_FRect dest = {pos.x - game.camera.x + game.wWidth / 2, pos.y - game.camera.y + game.wHeight / 2, tileSize, tileSize};
 	SDL_RenderTexture(game.renderer, game.tiles[(int) Tile::PLAYER], &tileFRect, &dest);
 	const SDL_FRect breakBlk = {game.map->posX(brokenBlock.x),game.map->posY(brokenBlock.y),tileSize,tileSize};
-	char p = (char) (((float) breakDurability / (float) breakMaxDurability) * 0xff);
+	const char p = (char) (((float) breakDurability / (float) breakMaxDurability) * 0xff);
 	SDL_SetRenderDrawColor(game.renderer,0,0,0,p);
 	SDL_RenderFillRect(game.renderer, &breakBlk);
 
@@ -141,7 +141,7 @@ void Player::render(){
 			const SDL_FRect itemRect = {game.wWidth / 2 - (INVENTORY_SIZE / 2.f - i) * tileSize * 3.f + tileSize / 2,game.wHeight - tileSize * 3.f + tileSize / 2, (float)tileSize, (float) tileSize};
 			SDL_RenderTexture(game.renderer, game.tiles[(int) inventory[i].type], &tileFRect, &itemRect);
 			char string[4];
-			SDL_snprintf(string, sizeof(string), "%d", inventory[i].count);//TODO: max stack size (255)
+			SDL_snprintf(string, sizeof(string), "%ud", inventory[i].count);//TODO: max stack size (255)
 			TTF_SetTextString(game.text, string, 0);
 			int w = 0;
 			TTF_MeasureString(game.font, string, 2, 0, &w, nullptr);

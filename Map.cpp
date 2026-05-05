@@ -108,7 +108,7 @@ void Map::Chunk::generate(){
 	const int gx = pos.x * chSize;
 	const int gy = pos.y * chSize;
 	constexpr int height = 100;
-	std::mt19937 rng((uint64_t)map_seed * map_seed + pos.x + pos.y * map_seed);
+	std::mt19937 rng((size_t)((uint64_t)map_seed * map_seed) + pos.x + pos.y * map_seed);
 	const int treeHeight = (int)(perlin.noise2D((gx + chSize / 2) * 0.01f, 1) * TERRAIN_STEEPNESS) + height;
 	for(int i = 0; i < chSize; i++){
 		const int n1 = (int)(perlin.noise2D((gx+i) * 0.01f, 1) * TERRAIN_STEEPNESS) + height;

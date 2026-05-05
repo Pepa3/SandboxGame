@@ -187,7 +187,7 @@ class Player{
 	friend Map;
 public:
 	Player(GameState& game, posWorld p);
-	void render();
+	void render()noexcept;
 	void update();
 	void save(std::ofstream& out) const;
 	void load(std::ifstream& in);
