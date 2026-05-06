@@ -91,7 +91,7 @@ void Map::generateWorld(){
 	while(!lightUpdateQueue.empty()){
 		count++;
 		const std::pair<posTile, bool> t = lightUpdateQueue.front();
-		lightUpdateQueue.pop_front();
+		lightUpdateQueue.pop();
 		const posChunk pc = t.first;
 		Chunk* ch = chunkAt(pc);
 		ch->updateLight(t.first-pc, t.second);
@@ -261,7 +261,7 @@ void Map::Chunk::update(){
 void Map::updateLight(posTile pos, bool genStep){
 	Block& b = world(pos);
 	if(!b.hasScheduledLightUpdate){
-		lightUpdateQueue.push_back({pos, genStep});
+		lightUpdateQueue.push({pos, genStep});
 		game.countLightUpdates = lightUpdateQueue.size();
 		b.hasScheduledLightUpdate = true;
 	}
@@ -388,7 +388,6 @@ Block Map::destroy(posTile p, Tool tool){
 	return c;
 }
 
-
 void Map::update(){
 	game.countLightUpdates = lightUpdateQueue.size();
 	const posChunk ppc = player->pos;
@@ -401,7 +400,7 @@ void Map::update(){
 	int count = 0;
 	while(!lightUpdateQueue.empty() && count++ < maxlightUpdateCount){
 		const std::pair<posTile, bool> f = lightUpdateQueue.front();
-		lightUpdateQueue.pop_front();
+		lightUpdateQueue.pop();
 		const posChunk pc = f.first;
 		Chunk* ch = chunkAt(pc);
 		ch->updateLight(f.first-pc,f.second);
@@ -502,11 +501,11 @@ bool Map::save(const std::string& file)const{
 	}
 	player.get()->save(out);
 	const uint32_t count = chunks.size();
-	write(out, &chSize);
 	write(out, &count);
 	for(const auto& ch : chunks){
 		ch.second->save(out);
 	}
+	write(out, &chSize);
 	out.close();
 	std::cout << "Saved to " << file << std::endl;
 	return true;
@@ -521,19 +520,19 @@ bool Map::load(const std::string& file){
 	player.get()->load(in);
 	game.camera.x = player->pos.x;
 	game.camera.y = player->pos.y;
-	int tmpChSize;
 	uint32_t tmpCount;
-	read(in, &tmpChSize);
-	if(tmpChSize != chSize){
-		std::cerr << "Map::load failed: bad chunk size in file "<< file << std::endl;
-		in.close();
-		return false;
-	}
 	read(in, &tmpCount);
 	for(size_t i = 0; i < tmpCount; i++){
 		std::unique_ptr<Chunk> ch = std::make_unique<Chunk>(this);
 		ch->load(in);
 		chunks[KEY(ch->pos.x, ch->pos.y)] = std::move(ch);
+	}
+	int tmpChSize;
+	read(in, &tmpChSize);
+	if(tmpChSize != chSize){
+		std::cerr << "Map::load failed: bad chunk size in file " << file << std::endl;
+		in.close();
+		return false;
 	}
 	in.close();
 	std::cout << "Loaded from " << file << std::endl;

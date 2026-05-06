@@ -141,7 +141,7 @@ void Player::render()noexcept{
 			const SDL_FRect itemRect = {game.wWidth / 2 - (INVENTORY_SIZE / 2.f - i) * tileSize * 3.f + tileSize / 2,game.wHeight - tileSize * 3.f + tileSize / 2, (float)tileSize, (float) tileSize};
 			SDL_RenderTexture(game.renderer, game.tiles[(int) inventory[i].type], &tileFRect, &itemRect);
 			char string[4];
-			SDL_snprintf(string, sizeof(string), "%ud", inventory[i].count);//TODO: max stack size (255)
+			SDL_snprintf(string, sizeof(string), "%u", inventory[i].count);//TODO: max stack size (255)
 			TTF_SetTextString(game.text, string, 0);
 			int w = 0;
 			TTF_MeasureString(game.font, string, 2, 0, &w, nullptr);

@@ -10,7 +10,7 @@
 #include <cassert>
 #include <fstream>
 #include <memory>
-#include <deque>
+#include <queue>
 
 /*
 * -
@@ -180,7 +180,7 @@ private:
 	GameState& game;
 	std::unique_ptr<Player> player;
 	std::unordered_map<uint32_t, std::unique_ptr<Chunk>> chunks;
-	std::deque<std::pair<posTile, bool>> lightUpdateQueue;
+	std::queue<std::pair<posTile, bool>> lightUpdateQueue;
 };
 
 class Player{
