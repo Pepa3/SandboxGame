@@ -57,18 +57,18 @@ template<scalar T, int R>
 class position{
 public:
 	T x, y;
-	position(T x, T y) noexcept :x(x), y(y) {} ;
+	position(T x, T y)  :x(x), y(y) {} ;
 	template<scalar U, int S>
-	operator const position<U, S>()const noexcept{
+	operator const position<U, S>()const {
 		if constexpr(R<S)
 			return position<U, S>((U)(floor((x * (T)R) / (double)S)), (U)(floor((y * (T)R) / (double)S)));
 		else
 			return position<U, S>((U)((x * (T)R) / S), (U)((y * (T)R) / S));
 	}
-	position<T, R> operator-(const position<T, R>& p)const noexcept{
+	position<T, R> operator-(const position<T, R>& p)const {
 		return {x - p.x,y - p.y};
 	}
-	position<T, R> operator+(const position<T, R>& p)const noexcept{
+	position<T, R> operator+(const position<T, R>& p)const {
 		return {x + p.x,y + p.y};
 	}
 };
@@ -94,8 +94,8 @@ void read(std::ifstream& in, T* t){
 	in.read(reinterpret_cast<char*>(t), sizeof(T));
 }
 
-inline char lfmax(char a, char b)noexcept{ return (char) (fmax(a, b)); };
-inline char lfabs(char a)noexcept{ return (char) (fabs(a)); };
+inline char lfmax(char a, char b){ return (char) (fmax(a, b)); };
+inline char lfabs(char a){ return (char) (fabs(a)); };
 
 enum class Tile :uint8_t{
 	UNKNOWN = 0, AIR = 1, DIRT = 2, STONE = 3, WOOD = 4, SAND = 5, LEAVES=6, GRASS=7, PLAYER=10, GLOW=13, COAL=14
@@ -138,10 +138,10 @@ public:
 		Chunk(Map* map) :pos(0,0), map(map){}
 		void generate();
 		void generateTree(int tx, int ty);
-		inline void generateTree(posTile p){ generateTree(p.x,p.y); }
+		void generateTree(posTile p){ generateTree(p.x,p.y); }
 		void update();
 		void updateLight(int x, int y, bool genStep);
-		inline void updateLight(posTile p, bool genStep){ updateLight(p.x, p.y, genStep); }
+		void updateLight(posTile p, bool genStep){ updateLight(p.x, p.y, genStep); }
 		void save(std::ofstream& out) const;
 		void load(std::ifstream& in);
 	private:
@@ -153,28 +153,30 @@ public:
 	void generateWorld();
 	void update();
 	void updateLight(posTile p, bool genStep = false);
-	inline void updateLight(int x, int y, bool genStep = false){ updateLight({x, y}, genStep); }
+	void updateLight(int x, int y, bool genStep = false){ updateLight({x, y}, genStep); }
 	void render();
 	bool save(const std::string& file)const;
 	bool load(const std::string& file);
 	//void handleKeyDown(char key);
-	void handleMouseWheel(SDL_MouseWheelEvent event) noexcept;
+	void handleMouseWheel(SDL_MouseWheelEvent event) ;
 	bool place(int x, int y, Tile t);
-	inline bool place(posTile p, Tile t){ return place(p.x, p.y, t); }
+	bool place(posTile p, Tile t){ return place(p.x, p.y, t); }
 	Block destroy(posTile p, Tool tool);
-	inline Block destroy(int x, int y, Tool tool){ return destroy({x,y}, tool); }
-	bool isSolid(posTile p);
-	inline bool isSolid(int x, int y){ return isSolid({x,y}); }
-	int tPosX(float x)const noexcept;
-	int tPosY(float y)const noexcept;
-	float posX(int x)const noexcept;
-	float posY(int y)const noexcept;
+	Block destroy(int x, int y, Tool tool){ return destroy({x,y}, tool); }
+	bool isSolid(posTile p)const;
+	bool isSolid(int x, int y)const{ return isSolid({x,y}); }
+	int tPosX(float x)const;
+	int tPosY(float y)const;
+	float posX(int x)const;
+	float posY(int y)const;
 	Block& world(posTile p);
-	inline Block& world(int x, int y){ return world({x,y}); }
+	const Block& world(posTile p)const;
+	Block& world(int x, int y){ return world({x,y}); }
+	const Block& world(int x, int y)const { return world({x,y}); }
 	Chunk* chunkAt(posChunk p);
-	inline Chunk* chunkAt(short x, short y){ return chunkAt({x, y});}
+	Chunk* chunkAt(short x, short y){ return chunkAt({x, y});}
 	bool chunkExists(posChunk p)const;
-	inline bool chunkExists(short x, short y)const{ return chunkExists({x,y}); }
+	bool chunkExists(short x, short y)const{ return chunkExists({x,y}); }
 
 private:
 	GameState& game;
@@ -187,11 +189,11 @@ class Player{
 	friend Map;
 public:
 	Player(GameState& game, posWorld p);
-	void render()noexcept;
+	void render()const;
 	void update();
 	void save(std::ofstream& out) const;
 	void load(std::ifstream& in);
-	bool addInventory(Block b)noexcept;
+	bool addInventory(Block b);
 private:
 	posWorld pos;
 	float yVel = 0.f;

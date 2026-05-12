@@ -8,16 +8,16 @@ Map::Map(GameState& game):game(game){
 	game.camera.y = player->pos.y;
 }
 
-float Map::posX(int x)const noexcept{
+float Map::posX(int x)const{
 	return tileSize * x - game.camera.x + game.wWidth / 2.f;
 }
-float Map::posY(int y)const noexcept{
+float Map::posY(int y)const{
 	return tileSize * y - game.camera.y + game.wHeight / 2.f;
 }
-int Map::tPosX(float x)const noexcept{
+int Map::tPosX(float x)const{
 	return (int) floorf((x + game.camera.x - game.wWidth / 2.f) / tileSize);
 }
-int Map::tPosY(float y)const noexcept{
+int Map::tPosY(float y)const{
 	return (int) floorf((y + game.camera.y - game.wHeight / 2.f) / tileSize);
 }
 inline constexpr uint32_t KEY(uint32_t high, uint32_t low){ return ((high << 16) | (low & 0xFFFF)); }
@@ -45,7 +45,17 @@ Block& Map::world(posTile p){
 	return ch->data[(p.x - pc.x * chSize) + (p.y - pc.y * chSize) * chSize];
 }
 
-bool Map::isSolid(posTile p){
+const Block& Map::world(posTile p)const{
+	const posChunk pc = p;
+	try{
+		Chunk* ch = chunks.at(KEY(pc.x,pc.y)).get();
+		return ch->data[(p.x - pc.x * chSize) + (p.y - pc.y * chSize) * chSize];
+	} catch(const std::out_of_range&){
+		return nullBlock;
+	}
+}
+
+bool Map::isSolid(posTile p)const{
 	return ::isSolid(world(p).t);
 }
 
@@ -350,7 +360,7 @@ void Map::Chunk::updateLight(int i, int j, bool genStep){
 /*void Map::handleKeyDown(char key){
 }*/
 
-void Map::handleMouseWheel(SDL_MouseWheelEvent event) noexcept{
+void Map::handleMouseWheel(SDL_MouseWheelEvent event){
 	const bool dir = event.integer_y < 0;
 	if(dir){
 		player->selectedSlot++;

@@ -3,7 +3,7 @@
 
 Player::Player(GameState& game, posWorld p) :pos(p), game(game){}
 
-bool Player::addInventory(Block b)noexcept{
+bool Player::addInventory(Block b){
 	for(uint8_t i = 0; i < cInventorySize; i++){
 		if(inventory[i].type == b.t){
 			inventory[i].count++;
@@ -120,14 +120,13 @@ void Player::update(){//TODO: ugly, it still does not work ideally, but it works
 	}
 }
 
-void Player::render()noexcept{
+void Player::render()const{
 	const SDL_FRect dest = {pos.x - game.camera.x + game.wWidth / 2, pos.y - game.camera.y + game.wHeight / 2, tileSize, tileSize};
 	SDL_RenderTexture(game.renderer, game.tiles[(int) Tile::PLAYER], &tileFRect, &dest);
 	const SDL_FRect breakBlk = {game.map->posX(brokenBlock.x),game.map->posY(brokenBlock.y),tileSize,tileSize};
 	const char p = (char) (((float) breakDurability / (float) breakMaxDurability) * 0xff);
 	SDL_SetRenderDrawColor(game.renderer,0,0,0,p);
 	SDL_RenderFillRect(game.renderer, &breakBlk);
-
 
 	for(uint8_t i = 0; i < cInventorySize; i++){
 		const SDL_FRect itemFrameRect = {game.wWidth / 2 - (cInventorySize / 2.f - i) * tileSize * 3.f,game.wHeight - tileSize * 3.f,tileSize * 2.f,tileSize * 2.f};
@@ -146,7 +145,6 @@ void Player::render()noexcept{
 			int w = 0;
 			TTF_MeasureString(game.font, string, 2, 0, &w, nullptr);
 			TTF_DrawRendererText(game.text, itemRect.x+tileSize/2-w/2.f, itemRect.y + tileSize*3/2);
-			
 		}
 	}
 }
