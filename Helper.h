@@ -22,12 +22,12 @@
 * CONSTANTS
 */
 
-constexpr const char* TILEMAP_PATH = "./tilemap.png";
-constexpr float PLAYER_SPEED = 7;
-constexpr float GRAVITY = 0.5;
-constexpr float SINK_RATE = 1;
-constexpr float JUMP_IMPULE = 8;
-constexpr int UPDATE_RADIUS = 3;
+constexpr const char* cTilemapPath = "./tilemap.png";
+constexpr float cPlayerSpeed = 7;
+constexpr float cGravity = 0.5;
+constexpr float cSinkRate = 1;
+constexpr float cJumpImpulse = 8;
+constexpr int cUpdateRadius = 3;
 constexpr int tileSize = 32;
 constexpr int chSize = 50;
 constexpr int dirtHeight = 5;
@@ -36,15 +36,15 @@ constexpr int caveCount = 7;
 constexpr int caveDistance = 40;
 constexpr int maxlightUpdateCount = 500;
 constexpr int minUpdateTimeMillis = 25;
-constexpr uint8_t INVENTORY_SIZE = 5;
-constexpr size_t PLACE_MILLIS = 250;
+constexpr uint8_t cInventorySize = 5;
+constexpr size_t cPlaceTimeoutMillis = 250;
 constexpr size_t tileMapWidth = 10, tileMapHeight = 10;
-constexpr size_t TERRAIN_STEEPNESS = 80;
+constexpr size_t cTerrainSteepness = 80;
 constexpr SDL_Rect tileRect = {0,0,tileSize,tileSize};
 constexpr SDL_FRect tileFRect = {0,0,tileSize,tileSize};
-constexpr size_t map_seed = 19254792u;
-//constexpr uint32_t map_seed = 1546916105u;
-const siv::BasicPerlinNoise<float> perlin{map_seed};
+constexpr size_t mapSeed = 19254792u;
+//constexpr uint32_t mapSeed = 1546916105u;
+const siv::BasicPerlinNoise<float> perlin{mapSeed};
 
 /*
 * TYPE DEFINITIONS
@@ -199,7 +199,7 @@ private:
 	struct Item{
 		Tile type = Tile::UNKNOWN;
 		uint8_t count = 0;
-	} inventory[INVENTORY_SIZE];
+	} inventory[cInventorySize];
 	char selectedSlot = 0;
 	uint64_t lastPlaceTicks = 0;
 	int breakDurability = 0;

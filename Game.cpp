@@ -54,7 +54,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv){
 	}
 	TTF_SetTextColor(game.text, 255, 255, 255, SDL_ALPHA_OPAQUE);
 
-	SDL_Surface* tilemap = IMG_Load(TILEMAP_PATH);
+	SDL_Surface* tilemap = IMG_Load(cTilemapPath);
 	if(tilemap==nullptr){
 		SDL_LogWarn(SDL_LOG_CATEGORY_ERROR, "Couldn't load the tilemap: %s\n", SDL_GetError());
 		return SDL_APP_FAILURE;

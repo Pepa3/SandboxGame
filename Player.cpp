@@ -4,13 +4,13 @@
 Player::Player(GameState& game, posWorld p) :pos(p), game(game){}
 
 bool Player::addInventory(Block b)noexcept{
-	for(uint8_t i = 0; i < INVENTORY_SIZE; i++){
+	for(uint8_t i = 0; i < cInventorySize; i++){
 		if(inventory[i].type == b.t){
 			inventory[i].count++;
 			return true;
 		}
 	}
-	for(uint8_t i = 0; i < INVENTORY_SIZE; i++){
+	for(uint8_t i = 0; i < cInventorySize; i++){
 		if(inventory[i].type == Tile::UNKNOWN || inventory[i].count == 0){
 			inventory[i] = {b.t,1};
 			return true;
@@ -34,7 +34,7 @@ void Player::update(){//TODO: ugly, it still does not work ideally, but it works
 		brokenBlock.y = ty;
 	}
 	if(button & SDL_BUTTON_RMASK){
-		if(lastPlaceTicks <= SDL_GetTicks() - PLACE_MILLIS){
+		if(lastPlaceTicks <= SDL_GetTicks() - cPlaceTimeoutMillis){
 			if(inventory[selectedSlot].count != 0){
 				if(game.map->place(tx, ty, inventory[selectedSlot].type)){
 					lastPlaceTicks = SDL_GetTicks();
@@ -66,20 +66,20 @@ void Player::update(){//TODO: ugly, it still does not work ideally, but it works
 	//can move if not going to be blocked and in air not blocked by both tiles
 
 	if(key_states[SDL_SCANCODE_D]){
-		if(!game.map->isSolid((int) floorf((pos.x + PLAYER_SPEED) / tileSize) + 1, m.y)
-			&& !(!onGround && game.map->isSolid((int) floorf((pos.x + PLAYER_SPEED) / tileSize) + 1, m.y + 1))
+		if(!game.map->isSolid((int) floorf((pos.x + cPlayerSpeed) / tileSize) + 1, m.y)
+			&& !(!onGround && game.map->isSolid((int) floorf((pos.x + cPlayerSpeed) / tileSize) + 1, m.y + 1))
 			){
-			pos.x += PLAYER_SPEED;
+			pos.x += cPlayerSpeed;
 		} else if(!game.map->isSolid(m.x + 1, m.y) //can snap?
 			&& !(!onGround && game.map->isSolid(m.x + 1, m.y + 1))
 			){
 			pos.x = pos.x + (m.x - (pos.x / tileSize)) * tileSize + tileSize;
 		}
 	} else if(key_states[SDL_SCANCODE_A]){
-		if(!game.map->isSolid((int) floorf((pos.x - PLAYER_SPEED) / tileSize), m.y)
-			&& !(!onGround && game.map->isSolid((int) floorf((pos.x - PLAYER_SPEED) / tileSize), m.y + 1))
+		if(!game.map->isSolid((int) floorf((pos.x - cPlayerSpeed) / tileSize), m.y)
+			&& !(!onGround && game.map->isSolid((int) floorf((pos.x - cPlayerSpeed) / tileSize), m.y + 1))
 			){
-			pos.x -= PLAYER_SPEED;
+			pos.x -= cPlayerSpeed;
 		} else{
 			pos.x = pos.x + (m.x - (pos.x / tileSize))*tileSize;
 		}
@@ -102,20 +102,20 @@ void Player::update(){//TODO: ugly, it still does not work ideally, but it works
 	const Block& b = game.map->world(m.x, m.y);
 
 	if(!onGround){// IN AIR (or water)
-		yVel += GRAVITY;
+		yVel += cGravity;
 		if(b.fluid != 0){
-			yVel = SINK_RATE;
+			yVel = cSinkRate;
 			if(key_states[SDL_SCANCODE_W]){
-				yVel = -JUMP_IMPULE;
+				yVel = -cJumpImpulse;
 			}else if(key_states[SDL_SCANCODE_S]){
-				yVel = JUMP_IMPULE;
+				yVel = cJumpImpulse;
 			}
 		}
 		if(mayBeOnGround && distanceToTileBoundary < yVel)yVel = distanceToTileBoundary;
 	}else{// ON GROUND
 		yVel = 0;
 		if(key_states[SDL_SCANCODE_W]){
-			yVel = -JUMP_IMPULE;
+			yVel = -cJumpImpulse;
 		}
 	}
 }
@@ -129,16 +129,16 @@ void Player::render()noexcept{
 	SDL_RenderFillRect(game.renderer, &breakBlk);
 
 
-	for(uint8_t i = 0; i < INVENTORY_SIZE; i++){
-		const SDL_FRect itemFrameRect = {game.wWidth / 2 - (INVENTORY_SIZE / 2.f - i) * tileSize * 3.f,game.wHeight - tileSize * 3.f,tileSize * 2.f,tileSize * 2.f};
+	for(uint8_t i = 0; i < cInventorySize; i++){
+		const SDL_FRect itemFrameRect = {game.wWidth / 2 - (cInventorySize / 2.f - i) * tileSize * 3.f,game.wHeight - tileSize * 3.f,tileSize * 2.f,tileSize * 2.f};
 		SDL_SetRenderDrawColor(game.renderer, 0xff, 0xff, 0xff, 0xff);
 		SDL_RenderRect(game.renderer, &itemFrameRect);
 		if(i == selectedSlot){
-			const SDL_FRect itemSelRect = {game.wWidth / 2 - (INVENTORY_SIZE / 2.f - i) * tileSize * 3.f+2,game.wHeight - tileSize * 3.f+2,tileSize * 2.f-4,tileSize * 2.f-4};
+			const SDL_FRect itemSelRect = {game.wWidth / 2 - (cInventorySize / 2.f - i) * tileSize * 3.f+2,game.wHeight - tileSize * 3.f+2,tileSize * 2.f-4,tileSize * 2.f-4};
 			SDL_RenderRect(game.renderer, &itemSelRect);
 		}
 		if(inventory[i].type != Tile::UNKNOWN && inventory[i].count != 0){
-			const SDL_FRect itemRect = {game.wWidth / 2 - (INVENTORY_SIZE / 2.f - i) * tileSize * 3.f + tileSize / 2,game.wHeight - tileSize * 3.f + tileSize / 2, (float)tileSize, (float) tileSize};
+			const SDL_FRect itemRect = {game.wWidth / 2 - (cInventorySize / 2.f - i) * tileSize * 3.f + tileSize / 2,game.wHeight - tileSize * 3.f + tileSize / 2, (float)tileSize, (float) tileSize};
 			SDL_RenderTexture(game.renderer, game.tiles[(int) inventory[i].type], &tileFRect, &itemRect);
 			char string[4];
 			SDL_snprintf(string, sizeof(string), "%u", inventory[i].count);//TODO: max stack size (255)

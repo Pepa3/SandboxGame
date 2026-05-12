@@ -2,7 +2,7 @@
 
 Map::Map(GameState& game):game(game){
 	chunks = std::unordered_map<uint32_t, std::unique_ptr<Chunk>>();
-	const float n1 = perlin.noise2D(20 * 0.01, 1) * TERRAIN_STEEPNESS + 100;
+	const float n1 = perlin.noise2D(20 * 0.01, 1) * cTerrainSteepness + 100;
 	player = std::make_unique<Player>(game, posWorld{20.f * tileSize, floorf(tileSize * (n1 - 1))});
 	game.camera.x = player->pos.x;
 	game.camera.y = player->pos.y;
@@ -59,7 +59,7 @@ void Map::generateWorld(){
 	std::cout << "Digging caves" << std::endl;//Generates chunks
 	for(int idx = 0; idx <= caveCount; idx++){
 		float wx = 0;
-		float wy = perlin.noise2D(0, 1) * TERRAIN_STEEPNESS + 100 + idx * caveDistance;
+		float wy = perlin.noise2D(0, 1) * cTerrainSteepness + 100 + idx * caveDistance;
 		const float seed = wy;//TODO: must change for distant caves
 		int length = 0;
 		float dx = 0, dy = 0;
@@ -108,10 +108,10 @@ void Map::Chunk::generate(){
 	const int gx = pos.x * chSize;
 	const int gy = pos.y * chSize;
 	constexpr int height = 100;
-	std::mt19937 rng((size_t)((uint64_t)map_seed * map_seed) + pos.x + pos.y * map_seed);
-	const int treeHeight = (int)(perlin.noise2D((gx + chSize / 2) * 0.01f, 1) * TERRAIN_STEEPNESS) + height;
+	std::mt19937 rng((size_t)((uint64_t)mapSeed * mapSeed) + pos.x + pos.y * mapSeed);
+	const int treeHeight = (int)(perlin.noise2D((gx + chSize / 2) * 0.01f, 1) * cTerrainSteepness) + height;
 	for(int i = 0; i < chSize; i++){
-		const int n1 = (int)(perlin.noise2D((gx+i) * 0.01f, 1) * TERRAIN_STEEPNESS) + height;
+		const int n1 = (int)(perlin.noise2D((gx+i) * 0.01f, 1) * cTerrainSteepness) + height;
 		for(int j = 0; j < chSize; j++){
 			if(j + gy < n1){
 				Block b = Block(Tile::AIR,Tile::AIR, 0, 127);
@@ -354,10 +354,10 @@ void Map::handleMouseWheel(SDL_MouseWheelEvent event) noexcept{
 	const bool dir = event.integer_y < 0;
 	if(dir){
 		player->selectedSlot++;
-		if(player->selectedSlot >= INVENTORY_SIZE) player->selectedSlot = 0;
+		if(player->selectedSlot >= cInventorySize) player->selectedSlot = 0;
 	} else{
 		player->selectedSlot--;
-		if(player->selectedSlot < 0)player->selectedSlot = INVENTORY_SIZE - 1;
+		if(player->selectedSlot < 0)player->selectedSlot = cInventorySize - 1;
 	}
 }
 
@@ -391,8 +391,8 @@ Block Map::destroy(posTile p, Tool tool){
 void Map::update(){
 	game.countLightUpdates = lightUpdateQueue.size();
 	const posChunk ppc = player->pos;
-	for(int i = -UPDATE_RADIUS; i <= UPDATE_RADIUS; i++){
-		for(int j = -UPDATE_RADIUS; j <= UPDATE_RADIUS; j++){
+	for(int i = -cUpdateRadius; i <= cUpdateRadius; i++){
+		for(int j = -cUpdateRadius; j <= cUpdateRadius; j++){
 			Chunk* ch = chunkAt(ppc.x + i, ppc.y + j);
 			ch->update();
 		}
