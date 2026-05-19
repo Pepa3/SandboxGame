@@ -2,8 +2,9 @@
 #include "Helper.h"
 #include <SDL3/SDL_main.h>
 
-static GameState game;
-static uint64_t frames = 0, lastFPSTime = 0, lastUpdateTicks = 0;
+static GameState game{};
+static uint64_t frames = 0, lastFPSTime = 0;
+void AppUpdate(std::stop_token stoken);
 
 SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv){
 	if(!SDL_SetAppMetadata("Game", "0.1", "me.pepa3.game")){
@@ -38,10 +39,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv){
 		SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Couldn't create window/renderer: %s\n", SDL_GetError());
 		return SDL_APP_FAILURE;
 	}
-	if(!SDL_SetRenderVSync(game.renderer, SDL_RENDERER_VSYNC_ADAPTIVE)){
-		SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Couldn't set SDL_RENDERER_VSYNC_ADAPTIVE: %s\n", SDL_GetError());
-		SDL_SetRenderVSync(game.renderer, 1);
-	}
+	SDL_SetRenderVSync(game.renderer, 1);
 	game.engine = TTF_CreateRendererTextEngine(game.renderer);
 	if(!game.engine){
 		SDL_LogError(SDL_LOG_CATEGORY_ERROR,"Couldn't create text engine: %s\n", SDL_GetError());
@@ -67,9 +65,9 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv){
 
 	SDL_Surface* temp = SDL_CreateSurface(32,32,SDL_PIXELFORMAT_RGBA8888);
 
-	for(int i = 0; i < tileMapHeight; i++){
-		for(int j = 0; j < tileMapWidth; j++){
-			SDL_Rect srcRect = {tileSize * j,tileSize * i,tileSize,tileSize};
+	for(size_t i = 0; i < tileMapHeight; i++){
+		for(size_t j = 0; j < tileMapWidth; j++){
+			SDL_Rect srcRect = {tileSize * (int)j,tileSize * (int)i,tileSize,tileSize};
 			if(!SDL_BlitSurface(tilemap, &srcRect, temp, &tileRect)){
 				SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Couldn't process the tilemap: %s\n", SDL_GetError());
 				return SDL_APP_FAILURE;
@@ -88,25 +86,31 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv){
 	//if(!game.map->load("test1.save"))
 	game.map->generateWorld();
 
+	game.updateThread = std::jthread(AppUpdate);
+
 	return SDL_APP_CONTINUE;
+}
+
+void AppUpdate(std::stop_token stoken){
+	while(!stoken.stop_requested()){
+		const auto t = std::chrono::high_resolution_clock::now();
+		game.map->update();
+		const auto t2 = std::chrono::high_resolution_clock::now();
+		/*if(t2 > t + std::chrono::milliseconds(1000 / 40)){
+			std::cerr << "Update took too long: " << (t2-t).count()/1000000 << "ms\n";
+		}*/
+		std::this_thread::sleep_until(t+std::chrono::milliseconds(1000/40));
+	}
 }
 
 SDL_AppResult SDL_AppIterate(void* appstate){
 	frames++;
-
-	const uint64_t t = SDL_GetTicks();
-	if(t - lastUpdateTicks >= minUpdateTimeMillis){
-		lastUpdateTicks=t;
-		game.map->update();
-	}
 
 	SDL_SetRenderDrawColor(game.renderer, 111, 255, 226, 0xff);
 	SDL_SetRenderDrawBlendMode(game.renderer,SDL_BLENDMODE_BLEND);
 	SDL_RenderClear(game.renderer);
 
 	game.map->render();
-	//"\0" "FPS:" "60.00" " LU:" "9999" " CG:" "999"
-	//[sizeof("FPS:60.00 LU:1000 CG:300\0")]
 	static char string[sizeof("FPS:60.00 LU:1000 CG:300\0")];
 	if(lastFPSTime + 1000 <= SDL_GetTicks()){
 		SDL_snprintf(string, sizeof(string), "FPS:%.2f LU:%d CG:%d", frames / (double) (SDL_GetTicks() - lastFPSTime) * 1000.f, game.countLightUpdates, game.countChunkGen);
@@ -120,13 +124,12 @@ SDL_AppResult SDL_AppIterate(void* appstate){
 
 	return SDL_APP_CONTINUE;
 }
-#pragma warning(suppress: 26461)
+
 SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event){
 	if(event->type == SDL_EVENT_QUIT){
 		return SDL_APP_SUCCESS;
 	} else if(event->type == SDL_EVENT_KEY_DOWN){
 		const char key = event->key.key;
-		//game.map.handleKeyDown(key);
 		switch(key){
 		case SDLK_ESCAPE:
 			return SDL_APP_SUCCESS;
@@ -155,6 +158,7 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event){
 }
 
 void SDL_AppQuit(void* appstate, SDL_AppResult result){
+	game.updateThread.request_stop();
 	game.map->save("test1.save");
 
 	TTF_Quit();

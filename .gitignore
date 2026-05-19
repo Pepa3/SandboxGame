@@ -363,3 +363,4 @@ MigrationBackup/
 FodyWeavers.xsd
 SDL3*.dll
 *.save
+test/

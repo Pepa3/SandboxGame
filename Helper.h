@@ -9,7 +9,9 @@
 #include <iostream>
 #include <cassert>
 #include <fstream>
+#include <chrono>
 #include <memory>
+#include <thread>
 #include <queue>
 
 /*
@@ -27,7 +29,7 @@ constexpr float cPlayerSpeed = 7;
 constexpr float cGravity = 0.5;
 constexpr float cSinkRate = 1;
 constexpr float cJumpImpulse = 8;
-constexpr int cUpdateRadius = 3;
+constexpr int cUpdateRadius = 5;
 constexpr int tileSize = 32;
 constexpr int chSize = 50;
 constexpr int dirtHeight = 5;
@@ -40,8 +42,8 @@ constexpr uint8_t cInventorySize = 5;
 constexpr size_t cPlaceTimeoutMillis = 250;
 constexpr size_t tileMapWidth = 10, tileMapHeight = 10;
 constexpr size_t cTerrainSteepness = 80;
-constexpr SDL_Rect tileRect = {0,0,tileSize,tileSize};
-constexpr SDL_FRect tileFRect = {0,0,tileSize,tileSize};
+constexpr SDL_Rect tileRect{0,0,tileSize,tileSize};
+constexpr SDL_FRect tileFRect{0,0,tileSize,tileSize};
 constexpr size_t mapSeed = 19254792u;
 //constexpr uint32_t mapSeed = 1546916105u;
 const siv::BasicPerlinNoise<float> perlin{mapSeed};
@@ -94,8 +96,9 @@ void read(std::ifstream& in, T* t){
 	in.read(reinterpret_cast<char*>(t), sizeof(T));
 }
 
-inline char lfmax(char a, char b){ return (char) (fmax(a, b)); };
-inline char lfabs(char a){ return (char) (fabs(a)); };
+constexpr char lfmax(char a, char b){ return std::max(a, b); };
+inline char lfabs(char a){ return (char) (std::abs(a)); };
+constexpr uint32_t chunkHashFromPos(uint32_t high, uint32_t low){ return ((high << 16) | (low & 0xFFFF)); }
 
 enum class Tile :uint8_t{
 	UNKNOWN = 0, AIR = 1, DIRT = 2, STONE = 3, WOOD = 4, SAND = 5, LEAVES=6, GRASS=7, PLAYER=10, GLOW=13, COAL=14
@@ -117,7 +120,7 @@ struct GameState;
 
 class Block{
 public:
-	constexpr Block(Tile t1, Tile bgnd, float fl = 0, char lght = 0):t(t1),fluid(fl),bg(bgnd),light(lght){}
+	constexpr Block(Tile t1, Tile bgnd, float fl = 0, char lght = 0):fluid(fl),t(t1),bg(bgnd),light(lght){}
 	Block() = default;
 	float fluid = 0;//0 - 1 - 1.25 - 1.25+0.25*depth
 	Tile t = Tile::UNKNOWN;//Foreground tile
@@ -157,7 +160,6 @@ public:
 	void render();
 	bool save(const std::string& file)const;
 	bool load(const std::string& file);
-	//void handleKeyDown(char key);
 	void handleMouseWheel(SDL_MouseWheelEvent event) ;
 	bool place(int x, int y, Tile t);
 	bool place(posTile p, Tile t){ return place(p.x, p.y, t); }
@@ -221,9 +223,10 @@ struct GameState{
 	TTF_Font* font = nullptr;
 	TTF_TextEngine* engine = nullptr;
 	TTF_Text* text = nullptr;
-	std::array<SDL_Texture*, 0xff> tiles = std::array<SDL_Texture*, 0xff>();
+	std::array<SDL_Texture*, 0xff> tiles{};
 	posWorld camera{0,0};
 	std::unique_ptr<Map> map;
+	std::jthread updateThread;
 	bool overlayFluid = false;
 	bool overlayLight = false;
 #ifdef _DEBUG

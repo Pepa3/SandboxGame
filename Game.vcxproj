@@ -106,14 +106,15 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
-      <AdditionalIncludeDirectories>D:\vscode\boost_1_82_0;D:\vscode\SDL3\include;D:\vscode\SDL3_ttf\include;D:\vscode\SDL3_image\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\vscode\oneapi-tbb-2023.0.0\include;D:\vscode\boost_1_82_0;D:\vscode\SDL3\include;D:\vscode\SDL3_ttf\include;D:\vscode\SDL3_image\include</AdditionalIncludeDirectories>
       <FloatingPointModel>Fast</FloatingPointModel>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
+      <DisableAnalyzeExternal>true</DisableAnalyzeExternal>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>D:\vscode\SDL3\lib\x86;D:\vscode\SDL3_ttf\lib\x86;D:\vscode\SDL3_image\lib\x86</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>D:\vscode\oneapi-tbb-2023.0.0\lib\ia32\vc14;D:\vscode\SDL3\lib\x86;D:\vscode\SDL3_ttf\lib\x86;D:\vscode\SDL3_image\lib\x86</AdditionalLibraryDirectories>
       <AdditionalDependencies>SDL3_ttf.lib;SDL3.lib;SDL3_image.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <Profile>false</Profile>
     </Link>
@@ -128,17 +129,19 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
-      <AdditionalIncludeDirectories>D:\vscode\boost_1_82_0;D:\vscode\SDL3\include;D:\vscode\SDL3_ttf\include;D:\vscode\SDL3_image\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\vscode\oneapi-tbb-2023.0.0\include;D:\vscode\boost_1_82_0;D:\vscode\SDL3\include;D:\vscode\SDL3_ttf\include;D:\vscode\SDL3_image\include</AdditionalIncludeDirectories>
       <FloatingPointModel>Fast</FloatingPointModel>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
       <EnablePREfast>true</EnablePREfast>
+      <InlineFunctionExpansion>Default</InlineFunctionExpansion>
+      <DisableAnalyzeExternal>true</DisableAnalyzeExternal>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>D:\vscode\SDL3\lib\x86;D:\vscode\SDL3_ttf\lib\x86;D:\vscode\SDL3_image\lib\x86</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>D:\vscode\oneapi-tbb-2023.0.0\lib\ia32\vc14;D:\vscode\SDL3\lib\x86;D:\vscode\SDL3_ttf\lib\x86;D:\vscode\SDL3_image\lib\x86</AdditionalLibraryDirectories>
       <AdditionalDependencies>SDL3_ttf.lib;SDL3.lib;SDL3_image.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <Profile>true</Profile>
     </Link>
@@ -151,14 +154,15 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
-      <AdditionalIncludeDirectories>D:\vscode\boost_1_82_0;D:\vscode\SDL3\include;D:\vscode\SDL3_ttf\include;D:\vscode\SDL3_image\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\vscode\oneapi-tbb-2023.0.0\include;D:\vscode\boost_1_82_0;D:\vscode\SDL3\include;D:\vscode\SDL3_ttf\include;D:\vscode\SDL3_image\include</AdditionalIncludeDirectories>
       <FloatingPointModel>Fast</FloatingPointModel>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
+      <DisableAnalyzeExternal>true</DisableAnalyzeExternal>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>D:\vscode\SDL3\lib\x64;D:\vscode\SDL3_ttf\lib\x64;D:\vscode\SDL3_image\lib\x64</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>D:\vscode\oneapi-tbb-2023.0.0\lib\intel64\vc14;D:\vscode\SDL3\lib\x64;D:\vscode\SDL3_ttf\lib\x64;D:\vscode\SDL3_image\lib\x64</AdditionalLibraryDirectories>
       <AdditionalDependencies>SDL3_ttf.lib;SDL3.lib;SDL3_image.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <Profile>false</Profile>
     </Link>
@@ -173,22 +177,25 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
-      <AdditionalIncludeDirectories>D:\vscode\boost_1_82_0;D:\vscode\SDL3\include;D:\vscode\SDL3_ttf\include;D:\vscode\SDL3_image\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\vscode\oneapi-tbb-2023.0.0\include;D:\vscode\boost_1_82_0;D:\vscode\SDL3\include;D:\vscode\SDL3_ttf\include;D:\vscode\SDL3_image\include</AdditionalIncludeDirectories>
       <FloatingPointModel>Fast</FloatingPointModel>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
       <EnablePREfast>true</EnablePREfast>
+      <InlineFunctionExpansion>Default</InlineFunctionExpansion>
+      <DisableAnalyzeExternal>true</DisableAnalyzeExternal>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>D:\vscode\SDL3\lib\x64;D:\vscode\SDL3_ttf\lib\x64;D:\vscode\SDL3_image\lib\x64</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>D:\vscode\oneapi-tbb-2023.0.0\lib\intel64\vc14;D:\vscode\SDL3\lib\x64;D:\vscode\SDL3_ttf\lib\x64;D:\vscode\SDL3_image\lib\x64</AdditionalLibraryDirectories>
       <AdditionalDependencies>SDL3_ttf.lib;SDL3.lib;SDL3_image.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <Profile>true</Profile>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Chunk.cpp" />
     <ClCompile Include="Helper.cpp" />
     <ClCompile Include="Game.cpp" />
     <ClCompile Include="Map.cpp" />
