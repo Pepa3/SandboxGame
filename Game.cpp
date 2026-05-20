@@ -131,7 +131,7 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event){
 	} else if(event->type == SDL_EVENT_KEY_DOWN){
 		const char key = event->key.key;
 		switch(key){
-		case SDLK_ESCAPE:
+		case SDLK_Q://TODO: exit screen/confirmation
 			return SDL_APP_SUCCESS;
 			break;
 		case SDLK_V:
@@ -144,15 +144,18 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event){
 			game.debugMode = !game.debugMode;
 			break;
 		default:
+			game.player->handleKeyDown(key);
 			break;
 		}
 	} else if(event->type == SDL_EVENT_KEY_UP){
 	} else if(event->type == SDL_EVENT_MOUSE_BUTTON_DOWN){
-		if(event->button.button == SDL_BUTTON_LEFT){
-		} else if(event->button.button == SDL_BUTTON_RIGHT){
-		}
+		game.player->handleMouseDown(event->button);
+	} else if(event->type == SDL_EVENT_MOUSE_BUTTON_UP){
+		game.player->handleMouseUp(event->button);
+	} else if(event->type == SDL_EVENT_MOUSE_MOTION){
+		game.player->handleMouseMotion(event->motion);
 	} else if(event->type == SDL_EVENT_MOUSE_WHEEL){
-		game.map->handleMouseWheel(event->wheel);
+		game.player->handleMouseWheel(event->wheel);
 	}
 	return SDL_APP_CONTINUE;
 }

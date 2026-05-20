@@ -149,3 +149,16 @@ int durability(Tile t){
         return 1;
     }
 }
+
+void read(std::ifstream& in, std::string& t){
+    size_t size = 0;
+    in.read(reinterpret_cast<char*>(&size), sizeof(size));
+    t.resize(size,'\0');
+    in.read(t.data(), size);
+}
+
+void write(std::ofstream& out, const std::string& s){
+    const size_t size = s.size();
+    out.write(reinterpret_cast<const char*>(&size), sizeof(size));
+    out.write(s.c_str(), s.size());
+}

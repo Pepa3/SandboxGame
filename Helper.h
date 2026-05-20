@@ -30,6 +30,7 @@ constexpr float cGravity = 0.5;
 constexpr float cSinkRate = 1;
 constexpr float cJumpImpulse = 8;
 constexpr int cUpdateRadius = 5;
+constexpr float itemSize = 12;
 constexpr int tileSize = 32;
 constexpr int chSize = 50;
 constexpr int dirtHeight = 5;
@@ -38,12 +39,15 @@ constexpr int caveCount = 7;
 constexpr int caveDistance = 40;
 constexpr int maxlightUpdateCount = 500;
 constexpr int minUpdateTimeMillis = 25;
-constexpr uint8_t cInventorySize = 5;
+constexpr uint8_t cHotbarSize = 5;
+constexpr uint8_t cInventorySize = cHotbarSize*4; 
+constexpr uint8_t cItemStackSize = 10;
 constexpr size_t cPlaceTimeoutMillis = 250;
 constexpr size_t tileMapWidth = 10, tileMapHeight = 10;
 constexpr size_t cTerrainSteepness = 80;
 constexpr SDL_Rect tileRect{0,0,tileSize,tileSize};
 constexpr SDL_FRect tileFRect{0,0,tileSize,tileSize};
+const std::string magic{"JustAGame"};
 constexpr size_t mapSeed = 19254792u;
 //constexpr uint32_t mapSeed = 1546916105u;
 const siv::BasicPerlinNoise<float> perlin{mapSeed};
@@ -73,6 +77,12 @@ public:
 	position<T, R> operator+(const position<T, R>& p)const {
 		return {x + p.x,y + p.y};
 	}
+	position<T, R> down(T n = 1)const{
+		return {x, y + n};
+	}
+	T dist(const position<T, R>& other){
+		return std::hypot<T>(x-other.x,y-other.y);
+	}
 };
 
 using posWorld = position<float, 1>;
@@ -87,21 +97,25 @@ template<class T>
 concept readable = not requires(T & t, std::ifstream & i){
 	t.load(i);
 }and std::is_default_constructible_v<T>;
+
 template<writable T>
 void write(std::ofstream& out, const T* t){
 	out.write(reinterpret_cast<const char*>(t), sizeof(T));
 }
+void write(std::ofstream& out, const std::string& s);
+
 template<readable T>
 void read(std::ifstream& in, T* t){
 	in.read(reinterpret_cast<char*>(t), sizeof(T));
 }
+void read(std::ifstream& in, std::string& t);
 
 constexpr char lfmax(char a, char b){ return std::max(a, b); };
 inline char lfabs(char a){ return (char) (std::abs(a)); };
 constexpr uint32_t chunkHashFromPos(uint32_t high, uint32_t low){ return ((high << 16) | (low & 0xFFFF)); }
 
 enum class Tile :uint8_t{
-	UNKNOWN = 0, AIR = 1, DIRT = 2, STONE = 3, WOOD = 4, SAND = 5, LEAVES=6, GRASS=7, PLAYER=10, GLOW=13, COAL=14
+	UNKNOWN = 0, AIR = 1, DIRT = 2, STONE = 3, WOOD = 4, SAND = 5, LEAVES=6, GRASS=7, CRAFTER=8, PLANKS=9, PLAYER=10, GLOW=13, COAL=14
 };
 enum class Tool :uint8_t{
 	HAND,PICKAXE
@@ -116,6 +130,7 @@ int durability(Tile t);
 */
 class Map;
 class Player;
+class Item;
 struct GameState;
 
 class Block{
@@ -150,6 +165,7 @@ public:
 	private:
 		posChunk pos;
 		std::array<Block, chSize* chSize> data{};
+		std::vector<Item> items{};
 		Map* map;
 	};
 	Map(GameState& game);
@@ -160,7 +176,6 @@ public:
 	void render();
 	bool save(const std::string& file)const;
 	bool load(const std::string& file);
-	void handleMouseWheel(SDL_MouseWheelEvent event) ;
 	bool place(int x, int y, Tile t);
 	bool place(posTile p, Tile t){ return place(p.x, p.y, t); }
 	Block destroy(posTile p, Tool tool);
@@ -182,28 +197,53 @@ public:
 
 private:
 	GameState& game;
-	std::unique_ptr<Player> player;
 	std::unordered_map<uint32_t, std::unique_ptr<Chunk>> chunks;
 	std::queue<std::pair<posTile, bool>> lightUpdateQueue;
 };
 
+class Item{
+	friend Map::Chunk;
+public:
+	Item(Tile t, posWorld pos) :t(t), pos(pos){}
+	Item() = default;
+	void update(const GameState& game);
+	void render(const GameState& game)const;
+private:
+	Tile t = Tile::UNKNOWN;
+	float yVel = 0;
+	posWorld pos{0,0};
+	bool pickedUp = false;
+};
+
 class Player{
 	friend Map;
+	friend Item;
 public:
 	Player(GameState& game, posWorld p);
+	void renderInventory()const;
 	void render()const;
 	void update();
+	void handleMouseWheel(SDL_MouseWheelEvent e);
+	void handleKeyDown(char key);
+	void handleMouseDown(SDL_MouseButtonEvent e);
+	void handleMouseUp(SDL_MouseButtonEvent e);
+	void handleMouseMotion(SDL_MouseMotionEvent e);
 	void save(std::ofstream& out) const;
 	void load(std::ifstream& in);
-	bool addInventory(Block b);
+	bool addInventory(Tile t);
 private:
+	struct ItemSlot{
+		Tile type = Tile::UNKNOWN;
+		uint8_t count = 0;
+	};
 	posWorld pos;
 	float yVel = 0.f;
 	bool onGround = false;
-	struct Item{
-		Tile type = Tile::UNKNOWN;
-		uint8_t count = 0;
-	} inventory[cInventorySize];
+	ItemSlot hotbar[cHotbarSize];
+	ItemSlot inventory[cInventorySize];
+	ItemSlot holding{};
+	uint8_t pickedUpFrom = 0;
+	bool openInventory = false;
 	char selectedSlot = 0;
 	uint64_t lastPlaceTicks = 0;
 	int breakDurability = 0;
@@ -226,6 +266,7 @@ struct GameState{
 	std::array<SDL_Texture*, 0xff> tiles{};
 	posWorld camera{0,0};
 	std::unique_ptr<Map> map;
+	std::unique_ptr<Player> player;
 	std::jthread updateThread;
 	bool overlayFluid = false;
 	bool overlayLight = false;

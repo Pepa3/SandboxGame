@@ -3,9 +3,9 @@
 Map::Map(GameState& game):game(game){
 	chunks = std::unordered_map<uint32_t, std::unique_ptr<Chunk>>();
 	const float n1 = perlin.noise2D(20 * 0.01, 1) * cTerrainSteepness + 100;
-	player = std::make_unique<Player>(game, posWorld{20.f * tileSize, floorf(tileSize * (n1 - 1))});
-	game.camera.x = player->pos.x;
-	game.camera.y = player->pos.y;
+	game.player = std::make_unique<Player>(game, posWorld{20.f * tileSize, floorf(tileSize * (n1 - 1))});
+	game.camera.x = game.player->pos.x;
+	game.camera.y = game.player->pos.y;
 }
 
 float Map::posX(int x)const{
@@ -66,6 +66,7 @@ void Map::generateWorld(){
 		}
 	}
 	std::cout << "Digging caves" << std::endl;//Generates chunks
+	//TODO: chunk generation = stutter, more caves must wait for chunk generation queue
 	for(int idx = 0; idx <= caveCount; idx++){
 		float wx = 0;
 		float wy = perlin.noise2D(0, 1) * cTerrainSteepness + 100 + idx * caveDistance;
@@ -117,17 +118,6 @@ void Map::updateLight(posTile pos, bool genStep){
 	}
 }
 
-void Map::handleMouseWheel(SDL_MouseWheelEvent event){
-	const bool dir = event.integer_y < 0;
-	if(dir){
-		player->selectedSlot++;
-		if(player->selectedSlot >= cInventorySize) player->selectedSlot = 0;
-	} else{
-		player->selectedSlot--;
-		if(player->selectedSlot < 0)player->selectedSlot = cInventorySize - 1;
-	}
-}
-
 bool Map::place(int x, int y, Tile t){
 	Block& b = world(x, y);
 	if(::isSolid(b.t)){
@@ -151,13 +141,15 @@ Block Map::destroy(posTile p, Tool tool){
 	Block c = b;
 	c.t = destroyResult(c.t, tool);
 	b.t = Tile::AIR;
+	if(c.t!=Tile::AIR)
+		chunkAt(p)->items.push_back(Item(c.t, posWorld(p) + posWorld{tileSize / 2,tileSize / 2}));
 	updateLight(p);
 	return c;
 }
 
 void Map::update(){
 	game.countLightUpdates = lightUpdateQueue.size();
-	const posChunk ppc = player->pos;
+	const posChunk ppc = game.player->pos;
 	for(int i = -cUpdateRadius; i <= cUpdateRadius; i++){
 		for(int j = -cUpdateRadius; j <= cUpdateRadius; j++){
 			Chunk* ch = chunkAt(ppc.x + i, ppc.y + j);
@@ -172,12 +164,12 @@ void Map::update(){
 		Chunk* ch = chunkAt(pc);
 		ch->updateLight(f.first-pc,f.second);
 	}
-	player->update();
+	game.player->update();
 }
 
 void Map::render(){
-	game.camera.x += (player->pos.x - game.camera.x + tileSize / 2) / 10;
-	game.camera.y += (player->pos.y - game.camera.y + tileSize / 2) / 10;
+	game.camera.x += (game.player->pos.x - game.camera.x + tileSize / 2) / 10;
+	game.camera.y += (game.player->pos.y - game.camera.y + tileSize / 2) / 10;
 
 	const int beginX = (int) (game.camera.x - game.wWidth / 2.f) / tileSize-1;
 	const int beginY = (int) (game.camera.y - game.wHeight / 2.f) / tileSize-1;
@@ -234,6 +226,14 @@ void Map::render(){
 			}
 		}
 	}
+	for(int cx = chBeginX; cx <= chEndX; cx++){
+		for(int cy = chBeginY; cy <= chEndY; cy++){
+			const Chunk* ch = chunkAt(cx, cy);
+			for(const auto& i : ch->items){
+				i.render(game);
+			}
+		}
+	}
 
 	float mx, my;
 	SDL_GetMouseState(&mx, &my);
@@ -244,7 +244,7 @@ void Map::render(){
 	SDL_SetRenderDrawColor(game.renderer,0,0,0,0xff);
 	SDL_RenderRect(game.renderer, &cursorRect);
 	if(game.debugMode){
-		const Chunk* ch = chunkAt(player->pos);
+		const Chunk* ch = chunkAt(game.player->pos);
 		const SDL_FRect chunkRect = {posX(ch->pos.x*chSize), posY(ch->pos.y*chSize),chSize*tileSize,chSize*tileSize};
 		SDL_SetRenderDrawColor(game.renderer, 0, 0, 0xff, 0xff);
 		SDL_RenderRect(game.renderer, &chunkRect);
@@ -257,7 +257,7 @@ void Map::render(){
 		SDL_SetRenderDrawColor(game.renderer, 0xff, 0, 0xff, 0xff);
 		SDL_RenderRect(game.renderer, &chunkRect3);
 	}
-	player->render();
+	game.player->render();
 }
 
 bool Map::save(const std::string& file)const{
@@ -266,7 +266,8 @@ bool Map::save(const std::string& file)const{
 		std::cerr << "Map::save failed to open "<< file << std::endl;
 		return false;
 	}
-	player.get()->save(out);
+	write(out, magic);
+	game.player.get()->save(out);
 	const uint32_t count = chunks.size();
 	write(out, &count);
 	for(const auto& ch : chunks){
@@ -284,9 +285,16 @@ bool Map::load(const std::string& file){//TODO: wont work with texture caching
 		std::cerr << "Map::load failed to open " << file << std::endl;
 		return false;
 	}
-	player.get()->load(in);
-	game.camera.x = player->pos.x;
-	game.camera.y = player->pos.y;
+	std::string magic1;
+	read(in, magic1);
+	if(magic1 != magic){
+		std::cerr << "Map::load failed: bad magic in file " << file << std::endl;
+		in.close();
+		return false;
+	}
+	game.player.get()->load(in);
+	game.camera.x = game.player->pos.x;
+	game.camera.y = game.player->pos.y;
 	uint32_t tmpCount;
 	read(in, &tmpCount);
 	for(size_t i = 0; i < tmpCount; i++){

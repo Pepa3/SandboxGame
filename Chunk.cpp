@@ -155,6 +155,10 @@ void Map::Chunk::update(){
 			}
 		}
 	}
+	for(auto& i : items){
+		i.update(map->game);
+	}
+	std::erase_if(items, [](const Item& i)->bool{return i.pickedUp; });
 }
 
 void Map::Chunk::updateLight(int i, int j, bool genStep){
@@ -241,9 +245,21 @@ void Map::Chunk::save(std::ofstream& out) const{
 	write(out, &pos.x);
 	write(out, &pos.y);
 	write(out, &data);
+	const size_t count = items.size();
+	write(out, &count);
+	for(size_t i = 0; i < count; i++){
+		write(out, &items[i]);
+	}
 }
 void Map::Chunk::load(std::ifstream& in){
 	read(in, &pos.x);
 	read(in, &pos.y);
 	read(in, &data);
+	size_t count;
+	read(in, &count);
+	for(size_t i = 0; i < count; i++){
+		Item it;
+		read(in, &it);
+		items.push_back(it);
+	}
 }
