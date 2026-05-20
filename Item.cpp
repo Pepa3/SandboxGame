@@ -13,6 +13,7 @@ void Item::update(const GameState& game){
 		yVel = 0;
 	}
 	pos.y += yVel;
+	//TODO: can fall out of bounds of its chunk => check for that
 }
 
 void Item::render(const GameState& game)const{

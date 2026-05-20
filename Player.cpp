@@ -163,8 +163,21 @@ void Player::handleMouseDown(SDL_MouseButtonEvent e){
 					game.wHeight / 2 - tileSize * 3.f + row * tileSize * 3,tileSize * 2.f,tileSize * 2.f};
 				if(e.x >= itemFrameRect.x && e.y >= itemFrameRect.y &&
 					e.x <= itemFrameRect.x + itemFrameRect.w && e.y <= itemFrameRect.y + itemFrameRect.h){
-					pickedUpFrom = i + row * cHotbarSize;
-					std::swap(inventory[pickedUpFrom], holding);
+					ItemSlot& slot = inventory[i + row * cHotbarSize];
+					if(holding.type == Tile::UNKNOWN && slot.type == Tile::UNKNOWN)continue;
+					if(slot.type == holding.type){
+						uint8_t cc = slot.count + holding.count;
+						if(cc <= cItemStackSize){
+							slot.count = cc;
+							holding.count = 0;
+							holding.type = Tile::UNKNOWN;
+						} else{
+							slot.count = 10;
+							holding.count = cc - cItemStackSize;
+						}
+					} else{
+						std::swap(slot, holding);
+					}
 					return;
 				}
 			}
@@ -174,8 +187,21 @@ void Player::handleMouseDown(SDL_MouseButtonEvent e){
 				game.wHeight - tileSize * 3.f,tileSize * 2.f,tileSize * 2.f};
 			if(e.x >= itemFrameRect.x && e.y >= itemFrameRect.y &&
 				e.x <= itemFrameRect.x + itemFrameRect.w && e.y <= itemFrameRect.y + itemFrameRect.h){
-				pickedUpFrom = i+cInventorySize;
-				std::swap(hotbar[i], holding);
+				ItemSlot& slot = hotbar[i];
+				if(holding.type == Tile::UNKNOWN && slot.type == Tile::UNKNOWN)continue;
+				if(slot.type == holding.type){
+					uint8_t cc = slot.count + holding.count;
+					if(cc <= cItemStackSize){
+						slot.count = cc;
+						holding.count = 0;
+						holding.type = Tile::UNKNOWN;
+					} else{
+						slot.count = 10;
+						holding.count = cc - cItemStackSize;
+					}
+				} else{
+					std::swap(slot, holding);
+				}
 				return;
 			}
 		}
@@ -183,40 +209,16 @@ void Player::handleMouseDown(SDL_MouseButtonEvent e){
 }
 
 void Player::handleMouseUp(SDL_MouseButtonEvent e){
-	if(openInventory && holding.count!=0){
-		for(uint8_t row = 0; row < cInventorySize / cHotbarSize; row++){
-			for(uint8_t i = 0; i < cHotbarSize; i++){
-				const SDL_FRect itemFrameRect = {game.wWidth / 2 - (cHotbarSize / 2.f - i) * tileSize * 3.f,
-					game.wHeight / 2 - tileSize * 3.f + row * tileSize * 3,tileSize * 2.f,tileSize * 2.f};
-				if(e.x >= itemFrameRect.x && e.y >= itemFrameRect.y &&
-					e.x <= itemFrameRect.x + itemFrameRect.w && e.y <= itemFrameRect.y + itemFrameRect.h){
-					std::swap(inventory[i + row * cHotbarSize], holding);
-					return;
-				}
-			}
-		}
-		for(uint8_t i = 0; i < cHotbarSize; i++){
-			const SDL_FRect itemFrameRect = {game.wWidth / 2 - (cHotbarSize / 2.f - i) * tileSize * 3.f,
-				game.wHeight - tileSize * 3.f,tileSize * 2.f,tileSize * 2.f};
-			if(e.x >= itemFrameRect.x && e.y >= itemFrameRect.y &&
-				e.x <= itemFrameRect.x + itemFrameRect.w && e.y <= itemFrameRect.y + itemFrameRect.h){
-				std::swap(hotbar[i], holding);
-				return;
-			}
-		}
-		if(pickedUpFrom < cInventorySize){
-			std::swap(inventory[pickedUpFrom], holding);
-		} else{
-			std::swap(hotbar[pickedUpFrom-cInventorySize], holding);
-		}
-	}
 }
 
 void Player::handleMouseMotion(SDL_MouseMotionEvent e){
-
 }
 
 void Player::renderInventory()const{
+	const SDL_FRect bg = {game.wWidth / 2 - cHotbarSize / 2.f * tileSize * 3.f - tileSize / 2.f,
+		game.wHeight / 2 - tileSize * 3.f - tileSize / 2.f, tileSize * cHotbarSize * 3.f, tileSize * cInventorySize / cHotbarSize * 3.f};
+	SDL_SetRenderDrawColor(game.renderer, 0xaa, 0xaa, 0xaa, 0x88);
+	SDL_RenderFillRect(game.renderer, &bg);
 	for(uint8_t row = 0; row < cInventorySize / cHotbarSize; row++){
 		for(uint8_t i = 0; i < cHotbarSize; i++){
 			const SDL_FRect itemFrameRect = {game.wWidth / 2 - (cHotbarSize / 2.f - i) * tileSize * 3.f,
@@ -274,14 +276,25 @@ void Player::render()const{
 				game.wHeight - tileSize * 3.f + tileSize / 2, (float)tileSize, (float) tileSize};
 			SDL_RenderTexture(game.renderer, game.tiles[(int) hotbar[i].type], &tileFRect, &itemRect);
 			char string[4];
-			SDL_snprintf(string, sizeof(string), "%u", hotbar[i].count);//TODO: max stack size (255)
+			SDL_snprintf(string, sizeof(string), "%u", hotbar[i].count);
 			TTF_SetTextString(game.text, string, 0);
 			int w = 0;
 			TTF_MeasureString(game.font, string, 2, 0, &w, nullptr);
 			TTF_DrawRendererText(game.text, itemRect.x+tileSize/2-w/2.f, itemRect.y + tileSize*3/2);
 		}
 	}
-	if(openInventory)renderInventory();
+	if(openInventory){
+		renderInventory();
+	} else{
+		float mx, my;
+		SDL_GetMouseState(&mx, &my);
+		const int tx = game.map->tPosX(mx);
+		const int ty = game.map->tPosY(my);
+
+		const SDL_FRect cursorRect = {game.map->posX(tx), game.map->posY(ty),tileSize,tileSize};
+		SDL_SetRenderDrawColor(game.renderer, 0, 0, 0, 0xff);
+		SDL_RenderRect(game.renderer, &cursorRect);
+	}
 }
 
 void Player::save(std::ofstream& out) const{
@@ -305,8 +318,15 @@ void Player::load(std::ifstream& in){
 	read(in, &yVel);
 	read(in, &onGround);
 	read(in, &hotbar);
+	for(uint8_t i = 0; i < cHotbarSize; i++){
+		if(hotbar[i].count == 0)hotbar[i].type = Tile::UNKNOWN;
+	}
 	read(in, &inventory);
+	for(uint8_t i = 0; i < cInventorySize; i++){
+		if(inventory[i].count == 0)inventory[i].type = Tile::UNKNOWN;
+	}
 	read(in, &holding);
+	if(holding.count == 0)holding.type = Tile::UNKNOWN;
 	read(in, &selectedSlot);
 	lastPlaceTicks = 0;
 	read(in, &breakDurability);

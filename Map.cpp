@@ -235,14 +235,6 @@ void Map::render(){
 		}
 	}
 
-	float mx, my;
-	SDL_GetMouseState(&mx, &my);
-	const int tx = tPosX(mx);
-	const int ty = tPosY(my);
-
-	const SDL_FRect cursorRect = {posX(tx), posY(ty),tileSize,tileSize};
-	SDL_SetRenderDrawColor(game.renderer,0,0,0,0xff);
-	SDL_RenderRect(game.renderer, &cursorRect);
 	if(game.debugMode){
 		const Chunk* ch = chunkAt(game.player->pos);
 		const SDL_FRect chunkRect = {posX(ch->pos.x*chSize), posY(ch->pos.y*chSize),chSize*tileSize,chSize*tileSize};

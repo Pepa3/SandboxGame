@@ -242,7 +242,6 @@ private:
 	ItemSlot hotbar[cHotbarSize];
 	ItemSlot inventory[cInventorySize];
 	ItemSlot holding{};
-	uint8_t pickedUpFrom = 0;
 	bool openInventory = false;
 	char selectedSlot = 0;
 	uint64_t lastPlaceTicks = 0;
