@@ -3,6 +3,7 @@
 #include <SDL3/SDL_surface.h>
 #include <SDL3_ttf/SDL_ttf.h>
 #include <SDL3_image/SDL_image.h>
+#include "SDL_FontCache/SDL_FontCache.h"
 #include "PerlinNoise.hpp"
 #include <unordered_map>
 #include <type_traits>
@@ -259,9 +260,7 @@ struct GameState{
 	size_t wWidth = 0, wHeight = 0;
 	SDL_Window* window = nullptr;
 	SDL_Renderer* renderer = nullptr;
-	TTF_Font* font = nullptr;
-	TTF_TextEngine* engine = nullptr;
-	TTF_Text* text = nullptr;
+	FC_Font* font = nullptr;
 	std::array<SDL_Texture*, 0xff> tiles{};
 	posWorld camera{0,0};
 	std::unique_ptr<Map> map;

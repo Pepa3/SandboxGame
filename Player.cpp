@@ -230,12 +230,7 @@ void Player::renderInventory()const{
 				const SDL_FRect itemRect = {game.wWidth / 2 - (cHotbarSize / 2.f - i) * tileSize * 3.f + tileSize / 2,
 					game.wHeight/2 - tileSize * 3.f + row * tileSize * 3 + tileSize / 2, (float) tileSize, (float) tileSize};
 				SDL_RenderTexture(game.renderer, game.tiles[(int) slot.type], &tileFRect, &itemRect);
-				char string[4];
-				SDL_snprintf(string, sizeof(string), "%u", slot.count);
-				TTF_SetTextString(game.text, string, 0);
-				int w = 0;
-				TTF_MeasureString(game.font, string, 2, 0, &w, nullptr);
-				TTF_DrawRendererText(game.text, itemRect.x + tileSize / 2 - w / 2.f, itemRect.y + tileSize * 3 / 2);
+				FC_Draw(game.font, game.renderer, itemRect.x + tileSize / 3, itemRect.y + tileSize * 3 / 2, "%u", slot.count);
 			}
 		}
 	}
@@ -244,12 +239,7 @@ void Player::renderInventory()const{
 		SDL_GetMouseState(&mx,&my);
 		const SDL_FRect itemRect = {mx, my, (float) tileSize, (float) tileSize};
 		SDL_RenderTexture(game.renderer, game.tiles[(int) holding.type], &tileFRect, &itemRect);
-		char string[4];
-		SDL_snprintf(string, sizeof(string), "%u", holding.count);
-		TTF_SetTextString(game.text, string, 0);
-		int w = 0;
-		TTF_MeasureString(game.font, string, 2, 0, &w, nullptr);
-		TTF_DrawRendererText(game.text, itemRect.x + tileSize / 2 - w / 2.f, itemRect.y + tileSize * 3 / 2);
+		FC_Draw(game.font, game.renderer, itemRect.x + tileSize / 3, itemRect.y + tileSize * 3 / 2, "%u", holding.count);
 	}
 }
 
@@ -275,12 +265,7 @@ void Player::render()const{
 			const SDL_FRect itemRect = {game.wWidth / 2 - (cHotbarSize / 2.f - i) * tileSize * 3.f + tileSize / 2,
 				game.wHeight - tileSize * 3.f + tileSize / 2, (float)tileSize, (float) tileSize};
 			SDL_RenderTexture(game.renderer, game.tiles[(int) hotbar[i].type], &tileFRect, &itemRect);
-			char string[4];
-			SDL_snprintf(string, sizeof(string), "%u", hotbar[i].count);
-			TTF_SetTextString(game.text, string, 0);
-			int w = 0;
-			TTF_MeasureString(game.font, string, 2, 0, &w, nullptr);
-			TTF_DrawRendererText(game.text, itemRect.x+tileSize/2-w/2.f, itemRect.y + tileSize*3/2);
+			FC_Draw(game.font, game.renderer, itemRect.x+tileSize/3, itemRect.y + tileSize*3/2, "%u", hotbar[i].count);
 		}
 	}
 	if(openInventory){

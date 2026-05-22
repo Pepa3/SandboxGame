@@ -3,7 +3,8 @@
 #include <SDL3/SDL_main.h>
 
 static GameState game{};
-static uint64_t frames = 0, lastFPSTime = 0;
+static double lastFPS = 0;
+static uint64_t frames = 0, time1 = 0;
 void AppUpdate(std::stop_token stoken);
 
 SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv){
@@ -18,9 +19,9 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv){
 		SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Couldn't initialize SDL_ttf: %s\n", SDL_GetError());
 		return SDL_APP_FAILURE;
 	}
-	game.font = TTF_OpenFont("Roboto-Regular.ttf",18.f);
-	if(!game.font){
-		SDL_Log("Couldn't open font: %s\n", SDL_GetError());
+	game.font = FC_CreateFont();
+	if(game.font == nullptr){
+		SDL_Log("Couldn't create font: %s\n", SDL_GetError());
 		return SDL_APP_FAILURE;
 	}
 	const SDL_DisplayID* id = SDL_GetDisplays(NULL);
@@ -40,17 +41,11 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv){
 		return SDL_APP_FAILURE;
 	}
 	SDL_SetRenderVSync(game.renderer, 1);
-	game.engine = TTF_CreateRendererTextEngine(game.renderer);
-	if(!game.engine){
-		SDL_LogError(SDL_LOG_CATEGORY_ERROR,"Couldn't create text engine: %s\n", SDL_GetError());
+	uint8_t code = 0;
+	if(!(code = FC_LoadFont(game.font, game.renderer, "Roboto-Regular.ttf", 18, FC_MakeColor(0xff, 0xff, 0xff, 0xff), TTF_STYLE_NORMAL))){
+		SDL_Log("Couldn't open font: %u: %s\n", code, SDL_GetError());
 		return SDL_APP_FAILURE;
 	}
-	game.text = TTF_CreateText(game.engine, game.font, "", 0);
-	if(!game.text){
-		SDL_Log("Couldn't create text: %s\n", SDL_GetError());
-		return SDL_APP_FAILURE;
-	}
-	TTF_SetTextColor(game.text, 255, 255, 255, SDL_ALPHA_OPAQUE);
 
 	SDL_Surface* tilemap = IMG_Load(cTilemapPath);
 	if(tilemap==nullptr){
@@ -83,7 +78,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv){
 	SDL_DestroySurface(tilemap);
 
 	game.map = std::make_unique<Map>(game);
-	//if(!game.map->load("test1.save"))
+	if(!game.map->load("test1.save"))
 	game.map->generateWorld();
 
 	game.updateThread = std::jthread(AppUpdate);
@@ -105,20 +100,18 @@ void AppUpdate(std::stop_token stoken){
 
 SDL_AppResult SDL_AppIterate(void* appstate){
 	frames++;
-
+	uint64_t time2 = SDL_GetTicksNS();
+	if(time1+1e9<time2){
+		lastFPS = (double)frames/(time2 - time1)*1e9;
+		time1 = time2;
+		frames = 0;
+	}
 	SDL_SetRenderDrawColor(game.renderer, 111, 255, 226, 0xff);
 	SDL_SetRenderDrawBlendMode(game.renderer,SDL_BLENDMODE_BLEND);
 	SDL_RenderClear(game.renderer);
 
 	game.map->render();
-	static char string[sizeof("FPS:60.00 LU:1000 CG:300\0")];
-	if(lastFPSTime + 1000 <= SDL_GetTicks()){
-		SDL_snprintf(string, sizeof(string), "FPS:%.2f LU:%d CG:%d", frames / (double) (SDL_GetTicks() - lastFPSTime) * 1000.f, game.countLightUpdates, game.countChunkGen);
-		lastFPSTime = SDL_GetTicks();
-		frames = 0;
-	}
-	TTF_SetTextString(game.text, string, 0);
-	TTF_DrawRendererText(game.text, 10, 10);
+	FC_Draw(game.font, game.renderer, 10, 10, "FPS:%.2f LU:%d CG:%d", lastFPS, game.countLightUpdates, game.countChunkGen);
 
 	SDL_RenderPresent(game.renderer);
 
@@ -162,8 +155,10 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event){
 
 void SDL_AppQuit(void* appstate, SDL_AppResult result){
 	game.updateThread.request_stop();
-	game.map->save("test1.save");
-
+	if(game.map){
+		game.map->save("test1.save");
+	}
+	FC_FreeFont(game.font);
 	TTF_Quit();
 	SDL_DestroyRenderer(game.renderer);
 	SDL_DestroyWindow(game.window);

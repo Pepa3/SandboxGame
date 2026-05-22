@@ -205,17 +205,11 @@ void Map::render(){
 						SDL_SetRenderDrawColor(game.renderer, 0x44, 0x44, 0xaa, 0xff);
 						SDL_RenderFillRect(game.renderer, &fluidRect);
 						if(game.overlayFluid){
-							char string[4];//TODO: drawing text is slow and can be cached
-							SDL_snprintf(string, sizeof(string), "%.1f", b.fluid);
-							TTF_SetTextString(game.text, string, sizeof(string));
-							TTF_DrawRendererText(game.text, dest.x, dest.y + tileSize / 2);
+							FC_Draw(game.font, game.renderer, dest.x, dest.y + tileSize / 2, "%.1f", b.fluid);
 						}
 					}
 					if(game.overlayLight){
-						char string[4];
-						SDL_snprintf(string, sizeof(string), "%d", b.light);
-						TTF_SetTextString(game.text, string, sizeof(string));
-						TTF_DrawRendererText(game.text, dest.x, dest.y + tileSize / 2);
+						FC_Draw(game.font, game.renderer, dest.x, dest.y + tileSize / 2, "%d", b.light);	
 					}
 					//if(b.light != 127){
 					const SDL_FRect shadowRect = {posX(x), posY(y), (float) tileSize, (float) tileSize};
