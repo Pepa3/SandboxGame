@@ -64,7 +64,7 @@ template<scalar T, int R>
 class position{
 public:
 	T x, y;
-	position(T x, T y)  :x(x), y(y) {} ;
+	constexpr position(T x, T y)  :x(x), y(y) {} ;
 	template<scalar U, int S>
 	operator const position<U, S>()const {
 		if constexpr(R<S)
@@ -78,6 +78,9 @@ public:
 	position<T, R> operator+(const position<T, R>& p)const {
 		return {x + p.x,y + p.y};
 	}
+	bool operator==(const position<T, R>& p)const{
+		return x == p.x && y == p.y;
+	}
 	position<T, R> down(T n = 1)const{
 		return {x, y + n};
 	}
@@ -89,6 +92,14 @@ public:
 using posWorld = position<float, 1>;
 using posTile = position<int, tileSize>;
 using posChunk = position<short, tileSize*chSize>;
+static_assert(sizeof(posChunk) == sizeof(uint32_t));
+
+template<>
+struct std::hash<posChunk>{
+	size_t operator()(const posChunk& p) const{
+		return (((size_t)p.y) << 16) | (p.x & 0xffff);
+	}
+};
 
 template<class T>
 concept writable = not requires(const T & t, std::ofstream & o){
@@ -113,7 +124,6 @@ void read(std::ifstream& in, std::string& t);
 
 constexpr char lfmax(char a, char b){ return std::max(a, b); };
 inline char lfabs(char a){ return (char) (std::abs(a)); };
-constexpr uint32_t chunkHashFromPos(uint32_t high, uint32_t low){ return ((high << 16) | (low & 0xFFFF)); }
 
 enum class Tile :uint8_t{
 	UNKNOWN = 0, AIR = 1, DIRT = 2, STONE = 3, WOOD = 4, SAND = 5, LEAVES=6, GRASS=7, CRAFTER=8, PLANKS=9, PLAYER=10, GLOW=13, COAL=14
@@ -174,7 +184,7 @@ public:
 	void update();
 	void updateLight(posTile p, bool genStep = false);
 	void updateLight(int x, int y, bool genStep = false){ updateLight({x, y}, genStep); }
-	void render();
+	void render()const;
 	bool save(const std::string& file)const;
 	bool load(const std::string& file);
 	bool place(int x, int y, Tile t);
@@ -192,13 +202,15 @@ public:
 	Block& world(int x, int y){ return world({x,y}); }
 	const Block& world(int x, int y)const { return world({x,y}); }
 	Chunk* chunkAt(posChunk p);
+	const Chunk* chunkAt(posChunk p)const;
 	Chunk* chunkAt(short x, short y){ return chunkAt({x, y});}
+	const Chunk* chunkAt(short x, short y)const { return chunkAt({x, y}); }
 	bool chunkExists(posChunk p)const;
 	bool chunkExists(short x, short y)const{ return chunkExists({x,y}); }
 
 private:
 	GameState& game;
-	std::unordered_map<uint32_t, std::unique_ptr<Chunk>> chunks;
+	std::unordered_map<posChunk, std::unique_ptr<Chunk>> chunks{};
 	std::queue<std::pair<posTile, bool>> lightUpdateQueue;
 };
 

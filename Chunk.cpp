@@ -1,7 +1,7 @@
 #include "Helper.h"
 
 Map::Chunk::Chunk(Map* map, posChunk p) :pos(p), map(map){
-	std::cout << "Created chunk [" << p.x << "][" << p.y << "]:\"" << chunkHashFromPos(p.x, p.y) << "\"" << std::endl;
+	std::cout << "Created chunk [" << p.x << "][" << p.y << "]" << std::endl;
 	generate();
 }
 

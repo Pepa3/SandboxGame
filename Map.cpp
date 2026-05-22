@@ -1,7 +1,6 @@
 #include "Helper.h"
 
 Map::Map(GameState& game):game(game){
-	chunks = std::unordered_map<uint32_t, std::unique_ptr<Chunk>>();
 	const float n1 = perlin.noise2D(20 * 0.01, 1) * cTerrainSteepness + 100;
 	game.player = std::make_unique<Player>(game, posWorld{20.f * tileSize, floorf(tileSize * (n1 - 1))});
 	game.camera.x = game.player->pos.x;
@@ -22,20 +21,24 @@ int Map::tPosY(float y)const{
 }
 
 Map::Chunk* Map::chunkAt(posChunk p){
-	uint32_t key = chunkHashFromPos(p.x, p.y);
 	Chunk* ch = nullptr;
-	try{
-		ch = chunks.at(key).get();
-	} catch(const std::out_of_range&){
+	auto entry = chunks.find(p);
+	if(entry != chunks.end()){
+		ch = entry->second.get();
+	} else{
 		game.countChunkGen++;
-		ch = chunks.insert({key, std::make_unique<Map::Chunk>(this, p)}).first->second.get();
+		ch = chunks.insert({p, std::make_unique<Map::Chunk>(this, p)}).first->second.get();
 	}
 	assert(ch != nullptr);
 	return ch;
 }
 
+const Map::Chunk* Map::chunkAt(posChunk p)const{
+	return chunks.at(p).get();
+}
+
 bool Map::chunkExists(posChunk p)const{
-	return chunks.contains(chunkHashFromPos(p.x, p.y));
+	return chunks.contains(p);
 }
 
 Block& Map::world(posTile p){
@@ -47,7 +50,7 @@ Block& Map::world(posTile p){
 const Block& Map::world(posTile p)const{
 	const posChunk pc = p;
 	try{
-		Chunk* ch = chunks.at(chunkHashFromPos(pc.x,pc.y)).get();
+		Chunk* ch = chunks.at(pc).get();
 		return ch->data[(p.x - pc.x * chSize) + (p.y - pc.y * chSize) * chSize];
 	} catch(const std::out_of_range&){
 		return nullBlock;
@@ -167,7 +170,7 @@ void Map::update(){
 	game.player->update();
 }
 
-void Map::render(){
+void Map::render()const{
 	game.camera.x += (game.player->pos.x - game.camera.x + tileSize / 2) / 10;
 	game.camera.y += (game.player->pos.y - game.camera.y + tileSize / 2) / 10;
 
@@ -185,7 +188,7 @@ void Map::render(){
 		for(int cy = chBeginY; cy <= chEndY; cy++){
 			const int by = cy == chBeginY ? beginY - chBeginY * chSize : 0;
 			const int ey = cy == chEndY ? endY - chEndY * chSize : chSize - 1;
-			Chunk* ch = chunkAt(cx,cy);
+			const Chunk* ch = chunkAt(cx,cy);
 			for(int lx = bx; lx <= ex; lx++){
 				for(int ly = by; ly <= ey; ly++){
 					const int x = lx + cx * chSize;
@@ -230,16 +233,16 @@ void Map::render(){
 	}
 
 	if(game.debugMode){
-		const Chunk* ch = chunkAt(game.player->pos);
-		const SDL_FRect chunkRect = {posX(ch->pos.x*chSize), posY(ch->pos.y*chSize),chSize*tileSize,chSize*tileSize};
+		posChunk chPos1 = game.player->pos;
+		const SDL_FRect chunkRect = {posX(chPos1.x * chSize), posY(chPos1.y * chSize),chSize * tileSize,chSize * tileSize};
 		SDL_SetRenderDrawColor(game.renderer, 0, 0, 0xff, 0xff);
 		SDL_RenderRect(game.renderer, &chunkRect);
-		const Chunk* ch2 = chunkAt(chBeginX, chBeginY);
-		const SDL_FRect chunkRect2 = {posX(ch2->pos.x * chSize), posY(ch2->pos.y * chSize),chSize * tileSize,chSize * tileSize};
+
+		const SDL_FRect chunkRect2 = {posX(chBeginX * chSize), posY(chBeginY * chSize),chSize * tileSize,chSize * tileSize};
 		SDL_SetRenderDrawColor(game.renderer, 0, 0xff, 0xff, 0xff);
 		SDL_RenderRect(game.renderer, &chunkRect2);
-		const Chunk* ch3 = chunkAt(chEndX, chEndY);
-		const SDL_FRect chunkRect3 = {posX(ch3->pos.x * chSize), posY(ch3->pos.y * chSize),chSize * tileSize,chSize * tileSize};
+
+		const SDL_FRect chunkRect3 = {posX(chEndX * chSize), posY(chEndY * chSize),chSize * tileSize,chSize * tileSize};
 		SDL_SetRenderDrawColor(game.renderer, 0xff, 0, 0xff, 0xff);
 		SDL_RenderRect(game.renderer, &chunkRect3);
 	}
@@ -286,7 +289,7 @@ bool Map::load(const std::string& file){//TODO: wont work with texture caching
 	for(size_t i = 0; i < tmpCount; i++){
 		std::unique_ptr<Chunk> ch = std::make_unique<Chunk>(this);
 		ch->load(in);
-		chunks[chunkHashFromPos(ch->pos.x, ch->pos.y)] = std::move(ch);
+		chunks[ch->pos] = std::move(ch);
 	}
 	int tmpChSize;
 	read(in, &tmpChSize);
