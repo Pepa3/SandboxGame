@@ -1,8 +1,8 @@
 #include "Helper.h"
 
 Map::Map(GameState& game):game(game){
-	const float n1 = terrainHeight(20);
-	game.player = std::make_unique<Player>(game, posWorld{20.f * tileSize, floorf(tileSize * (n1 - 1))});
+	const int n1 = terrainHeight(20);
+	game.player = std::make_unique<Player>(game, posWorld{20.f * tileSize, (float)tileSize * (n1 - 1)});
 	game.camera.x = game.player->pos.x;
 	game.camera.y = game.player->pos.y;
 }
@@ -57,10 +57,6 @@ const Block& Map::world(posTile p)const{
 	}
 }
 
-bool Map::isSolid(posTile p)const{
-	return ::isSolid(world(p).t);
-}
-
 void Map::generateWorld(){
 	std::cout << "Generating chunks" << std::endl;
 	for(int i = 2; i >= -2; i--){
@@ -72,7 +68,7 @@ void Map::generateWorld(){
 	//TODO: chunk generation = stutter, more caves must wait for chunk generation queue
 	for(int idx = 0; idx <= caveCount; idx++){
 		float wx = 0;
-		float wy = terrainHeight(0) + idx * caveDistance;
+		float wy = (float)terrainHeight(0) + idx * caveDistance;
 		const float seed = wy;//TODO: must change for distant caves
 		int length = 0;
 		float dx = 0, dy = 0;
@@ -305,4 +301,19 @@ bool Map::load(const std::string& file){//TODO: wont work with texture caching
 
 int Map::terrainHeight(int x)const{
 	return (int) (perlin.noise2D(x * 0.01f, 1) * cTerrainSteepness);
+}
+
+Biome Map::getBiome(posChunk pos)const{
+	const float n = perlin.noise2D(pos.x * 0.01f, 10);
+
+	if(n < -0.25f)
+		return Biome::DESERT;
+
+	if(n < 0.15f)
+		return Biome::PLAINS;
+
+	if(n < 0.45f)
+		return Biome::FOREST;
+
+	return Biome::MOUNTAINS;
 }

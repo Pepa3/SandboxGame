@@ -76,24 +76,25 @@ void Player::update(){//TODO: ugly, it still does not work ideally, but it works
 		}
 	}
 	posTile m = pos;
+	Tile tdr = game.map->world(m.down().right()).t;
 	// on ground if both blocks under player are solid unless standing exactly on tile, then not on ground
-	onGround = game.map->isSolid(m.x, m.y + 1) || (m.x-(pos.x/tileSize) != 0.f && game.map->isSolid(m.x + 1, m.y + 1));
+	onGround = isSolid(game.map->world(m.down()).t) || (m.x-(pos.x/tileSize) != 0.f && isSolid(tdr));
 
 	//can move if not going to be blocked and in air not blocked by both tiles
 
 	if(key_states[SDL_SCANCODE_D]){
-		if(!game.map->isSolid((int) floorf((pos.x + cPlayerSpeed) / tileSize) + 1, m.y)
-			&& !(!onGround && game.map->isSolid((int) floorf((pos.x + cPlayerSpeed) / tileSize) + 1, m.y + 1))
+		if(!isSolid(game.map->world((int) floorf((pos.x + cPlayerSpeed) / tileSize) + 1, m.y).t)
+			&& !(!onGround && isSolid(game.map->world((int) floorf((pos.x + cPlayerSpeed) / tileSize) + 1, m.y + 1).t))
 			){
 			pos.x += cPlayerSpeed;
-		} else if(!game.map->isSolid(m.x + 1, m.y) //can snap?
-			&& !(!onGround && game.map->isSolid(m.x + 1, m.y + 1))
+		} else if(!isSolid(game.map->world(m.right()).t) //can snap?
+			&& !(!onGround && isSolid(tdr))
 			){
 			pos.x = pos.x + (m.x - (pos.x / tileSize)) * tileSize + tileSize;
 		}
 	} else if(key_states[SDL_SCANCODE_A]){
-		if(!game.map->isSolid((int) floorf((pos.x - cPlayerSpeed) / tileSize), m.y)
-			&& !(!onGround && game.map->isSolid((int) floorf((pos.x - cPlayerSpeed) / tileSize), m.y + 1))
+		if(!isSolid(game.map->world((int) floorf((pos.x - cPlayerSpeed) / tileSize), m.y).t)
+			&& !(!onGround && isSolid(game.map->world((int) floorf((pos.x - cPlayerSpeed) / tileSize), m.y + 1).t))
 			){
 			pos.x -= cPlayerSpeed;
 		} else{
@@ -103,16 +104,17 @@ void Player::update(){//TODO: ugly, it still does not work ideally, but it works
 	m.x = (int) floorf(pos.x / tileSize);
 
 	float distanceToTileBoundary = (m.y - pos.y / tileSize)*tileSize;
-	if(!game.map->isSolid(m.x, (int) floorf((pos.y + yVel) / tileSize))
-		&& !(m.x - (pos.x / tileSize) != 0.f && game.map->isSolid(m.x + 1, (int) floorf((pos.y + yVel) / tileSize)))){
+	if(!isSolid(game.map->world(m.x, (int) floorf((pos.y + yVel) / tileSize)).t)
+		&& !(m.x - (pos.x / tileSize) != 0.f && isSolid(game.map->world(m.x + 1, (int) floorf((pos.y + yVel) / tileSize)).t))){
 		pos.y += yVel;
 	} else{
 		yVel = distanceToTileBoundary;
 	}
 
 	m.y = (int) floorf(pos.y / tileSize);
-	onGround = game.map->isSolid(m.x, m.y + 1) || (m.x - (pos.x / tileSize) != 0.f && game.map->isSolid(m.x + 1, m.y + 1));
-	const bool mayBeOnGround = game.map->isSolid(m.x, m.y + 2) || (m.x - (pos.x / tileSize) != 0.f && game.map->isSolid(m.x + 1, m.y + 2));
+	onGround = isSolid(game.map->world(m.x, m.y + 1).t) || (m.x - (pos.x / tileSize) != 0.f && isSolid(game.map->world(m.x + 1, m.y + 1).t));
+	const bool mayBeOnGround = isSolid(game.map->world(m.x, m.y + 2).t) || 
+		(m.x - (pos.x / tileSize) != 0.f && isSolid(game.map->world(m.x + 1, m.y + 2).t));
 	distanceToTileBoundary = 32 + (m.y - pos.y / tileSize)*tileSize;
 
 	const Block& b = game.map->world(m.x, m.y);

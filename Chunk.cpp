@@ -263,18 +263,3 @@ void Map::Chunk::load(std::ifstream& in){
 		items.push_back(it);
 	}
 }
-
-Biome Map::Chunk::getBiome(posChunk pos)const{
-	const float n = perlin.noise2D(pos.x * 0.01f, 10);
-
-	if(n < -0.25f)
-		return Biome::DESERT;
-
-	if(n < 0.15f)
-		return Biome::PLAINS;
-
-	if(n < 0.45f)
-		return Biome::FOREST;
-
-	return Biome::MOUNTAINS;
-}

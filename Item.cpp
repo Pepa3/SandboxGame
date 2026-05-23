@@ -7,7 +7,7 @@ void Item::update(const GameState& game){
 			pickedUp = true;
 		}
 	}
-	if(!game.map->isSolid(pos.down(itemSize))){
+	if(!isSolid(game.map->world(pos.down(itemSize)).t)){
 		yVel += cGravity;
 	} else{
 		yVel = 0;

@@ -50,7 +50,7 @@ constexpr SDL_Rect tileRect{0,0,tileSize,tileSize};
 constexpr SDL_FRect tileFRect{0,0,tileSize,tileSize};
 const std::string magic{"JustAGame"};
 constexpr size_t mapSeed = 19254792u;
-//constexpr uint32_t mapSeed = 1546916105u;
+//constexpr size_t mapSeed = 1546916105u;
 const siv::BasicPerlinNoise<float> perlin{mapSeed};
 
 /*
@@ -83,6 +83,9 @@ public:
 	}
 	position<T, R> down(T n = 1)const{
 		return {x, y + n};
+	}
+	position<T, R> right(T n = 1)const{
+		return {x + n, y};
 	}
 	T dist(const position<T, R>& other){
 		return std::hypot<T>(x-other.x,y-other.y);
@@ -178,7 +181,6 @@ public:
 		void updateLight(posTile p, bool genStep){ updateLight(p.x, p.y, genStep); }
 		void save(std::ofstream& out) const;
 		void load(std::ifstream& in);
-		Biome getBiome(posChunk pos)const;
 	private:
 		posChunk pos;
 		std::array<Block, chSize* chSize> data{};
@@ -197,8 +199,6 @@ public:
 	bool place(posTile p, Tile t){ return place(p.x, p.y, t); }
 	Block destroy(posTile p, Tool tool);
 	Block destroy(int x, int y, Tool tool){ return destroy({x,y}, tool); }
-	bool isSolid(posTile p)const;//TODO: remove
-	bool isSolid(int x, int y)const{ return isSolid({x,y}); }//TODO: remove
 	int tPosX(float x)const;
 	int tPosY(float y)const;
 	float posX(int x)const;
@@ -214,6 +214,7 @@ public:
 	bool chunkExists(posChunk p)const;
 	bool chunkExists(short x, short y)const{ return chunkExists({x,y}); }
 	int terrainHeight(int x)const;
+	Biome getBiome(posChunk pos)const;
 
 private:
 	GameState& game;
