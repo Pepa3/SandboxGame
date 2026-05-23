@@ -1,7 +1,7 @@
 #include "Helper.h"
 
 Map::Map(GameState& game):game(game){
-	const float n1 = perlin.noise2D(20 * 0.01, 1) * cTerrainSteepness + 100;
+	const float n1 = terrainHeight(20);
 	game.player = std::make_unique<Player>(game, posWorld{20.f * tileSize, floorf(tileSize * (n1 - 1))});
 	game.camera.x = game.player->pos.x;
 	game.camera.y = game.player->pos.y;
@@ -72,7 +72,7 @@ void Map::generateWorld(){
 	//TODO: chunk generation = stutter, more caves must wait for chunk generation queue
 	for(int idx = 0; idx <= caveCount; idx++){
 		float wx = 0;
-		float wy = perlin.noise2D(0, 1) * cTerrainSteepness + 100 + idx * caveDistance;
+		float wy = terrainHeight(0) + idx * caveDistance;
 		const float seed = wy;//TODO: must change for distant caves
 		int length = 0;
 		float dx = 0, dy = 0;
@@ -211,14 +211,14 @@ void Map::render()const{
 							FC_Draw(game.font, game.renderer, dest.x, dest.y + tileSize / 2, "%.1f", b.fluid);
 						}
 					}
-					if(game.overlayLight){
-						FC_Draw(game.font, game.renderer, dest.x, dest.y + tileSize / 2, "%d", b.light);	
-					}
 					//if(b.light != 127){
 					const SDL_FRect shadowRect = {posX(x), posY(y), (float) tileSize, (float) tileSize};
 					SDL_SetRenderDrawColor(game.renderer, 0, 0, 0, (127 - b.light) * 2);
 					SDL_RenderFillRect(game.renderer, &shadowRect);
 					//}
+					if(game.overlayLight){
+						FC_Draw(game.font, game.renderer, dest.x, dest.y + tileSize / 2, "%d", b.light);
+					}
 				}
 			}
 		}
@@ -301,4 +301,8 @@ bool Map::load(const std::string& file){//TODO: wont work with texture caching
 	in.close();
 	std::cout << "Loaded from " << file << std::endl;
 	return true;
+}
+
+int Map::terrainHeight(int x)const{
+	return (int) (perlin.noise2D(x * 0.01f, 1) * cTerrainSteepness);
 }

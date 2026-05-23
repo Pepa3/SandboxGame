@@ -279,6 +279,9 @@ void Player::render()const{
 		const SDL_FRect cursorRect = {game.map->posX(tx), game.map->posY(ty),tileSize,tileSize};
 		SDL_SetRenderDrawColor(game.renderer, 0, 0, 0, 0xff);
 		SDL_RenderRect(game.renderer, &cursorRect);
+		if(game.debugMode){
+			FC_Draw(game.font,game.renderer,mx,my-18,"%d:%d",tx,ty);
+		}
 	}
 }
 

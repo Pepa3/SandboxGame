@@ -94,6 +94,7 @@ using posTile = position<int, tileSize>;
 using posChunk = position<short, tileSize*chSize>;
 static_assert(sizeof(posChunk) == sizeof(uint32_t));
 
+//TODO: should check if this is a good idea
 template<>
 struct std::hash<posChunk>{
 	size_t operator()(const posChunk& p) const{
@@ -131,6 +132,10 @@ enum class Tile :uint8_t{
 enum class Tool :uint8_t{
 	HAND,PICKAXE
 };
+enum class Biome :uint8_t{
+	PLAINS,FOREST,DESERT,MOUNTAINS
+};
+
 bool isSolid(Tile t);
 bool hasBackground(Tile t);
 Tile destroyResult(Tile t, Tool l);
@@ -173,6 +178,7 @@ public:
 		void updateLight(posTile p, bool genStep){ updateLight(p.x, p.y, genStep); }
 		void save(std::ofstream& out) const;
 		void load(std::ifstream& in);
+		Biome getBiome(posChunk pos)const;
 	private:
 		posChunk pos;
 		std::array<Block, chSize* chSize> data{};
@@ -191,8 +197,8 @@ public:
 	bool place(posTile p, Tile t){ return place(p.x, p.y, t); }
 	Block destroy(posTile p, Tool tool);
 	Block destroy(int x, int y, Tool tool){ return destroy({x,y}, tool); }
-	bool isSolid(posTile p)const;
-	bool isSolid(int x, int y)const{ return isSolid({x,y}); }
+	bool isSolid(posTile p)const;//TODO: remove
+	bool isSolid(int x, int y)const{ return isSolid({x,y}); }//TODO: remove
 	int tPosX(float x)const;
 	int tPosY(float y)const;
 	float posX(int x)const;
@@ -207,6 +213,7 @@ public:
 	const Chunk* chunkAt(short x, short y)const { return chunkAt({x, y}); }
 	bool chunkExists(posChunk p)const;
 	bool chunkExists(short x, short y)const{ return chunkExists({x,y}); }
+	int terrainHeight(int x)const;
 
 private:
 	GameState& game;
