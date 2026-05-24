@@ -59,39 +59,9 @@ const Block& Map::world(posTile p)const{
 
 void Map::generateWorld(){
 	std::cout << "Generating chunks" << std::endl;
-	for(int i = 2; i >= -2; i--){
-		for(int j = 2; j >= -2; j--){
+	for(int i = cUpdateRadius + 1; i >= -cUpdateRadius - 1; i--){
+		for(int j = cUpdateRadius + 1; j >= -cUpdateRadius - 1; j--){
 			chunkAt(i, j);
-		}
-	}
-	std::cout << "Digging caves" << std::endl;//Generates chunks
-	//TODO: chunk generation = stutter, more caves must wait for chunk generation queue
-	for(int idx = 0; idx <= caveCount; idx++){
-		float wx = 0;
-		float wy = (float)terrainHeight(0) + idx * caveDistance;
-		const float seed = wy;//TODO: must change for distant caves
-		int length = 0;
-		float dx = 0, dy = 0;
-		while(length < 1000){
-			const auto carve = [this](float x, float y){
-				Block& b = world((int)x, (int)y);
-				b.t = Tile::AIR;
-				b.lightSource = false;
-			};
-			for(int i = -2; i <= 2; i++){
-				for(int j = -2; j <= 2; j++){
-					if(!(abs(i) == 2 && abs(j) == 2)){
-						carve(wx + i, wy + j);
-					}
-				}
-			}
-			dx += (idx%2)==0?1:-1;
-			dy += perlin.noise2D(seed, 0 + length * 0.1f)*1.5f;
-			wx += dx;
-			dx -= dx > 0 ? 1 : -1;
-			wy += dy;
-			dy -= dy > 0 ? 1 : -1;
-			length += 1;
 		}
 	}
 	std::cout << "Processing light updates" << std::endl;
@@ -140,6 +110,7 @@ Block Map::destroy(posTile p, Tool tool){
 	Block c = b;
 	c.t = destroyResult(c.t, tool);
 	b.t = Tile::AIR;
+	b.lightSource = false;
 	if(c.t!=Tile::AIR)
 		chunkAt(p)->items.push_back(Item(c.t, posWorld(p) + posWorld{tileSize / 2,tileSize / 2}));
 	updateLight(p);
@@ -300,11 +271,31 @@ bool Map::load(const std::string& file){//TODO: wont work with texture caching
 }
 
 int Map::terrainHeight(int x)const{
-	return (int) (perlin.noise2D(x * 0.01f, 1) * cTerrainSteepness);
+	float f = 1;
+	size_t a = 0;
+	switch(getBiome(posTile(x,0))){
+	case Biome::PLAINS:
+		a = 30;
+		f = 0.01f;
+		break;
+	case Biome::FOREST:
+		a = 40;
+		f = 0.02f;
+		break;
+	case Biome::DESERT:
+		a = 10;
+		f = 0.005f;
+		break;
+	case Biome::MOUNTAINS:
+		a = 80;
+		f = 0.02f;
+		break;
+	}
+	return (int) (perlin.noise2D(x * f, 1) * a);
 }
 
 Biome Map::getBiome(posChunk pos)const{
-	const float n = perlin.noise2D(pos.x * 0.01f, 10);
+	const float n = perlin.noise2D((float)pos.x*0.1f, 10);
 
 	if(n < -0.25f)
 		return Biome::DESERT;

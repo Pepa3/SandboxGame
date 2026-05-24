@@ -162,3 +162,16 @@ void write(std::ofstream& out, const std::string& s){
     out.write(reinterpret_cast<const char*>(&size), sizeof(size));
     out.write(s.c_str(), s.size());
 }
+
+const char* biomeName(Biome b){
+    switch(b){
+    case Biome::PLAINS:
+        return "Plains";
+    case Biome::FOREST:
+        return "Forest";
+    case Biome::DESERT:
+        return "Desert";
+    case Biome::MOUNTAINS:
+        return "Mountains";
+    }
+}

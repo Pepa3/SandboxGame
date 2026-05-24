@@ -282,7 +282,7 @@ void Player::render()const{
 		SDL_SetRenderDrawColor(game.renderer, 0, 0, 0, 0xff);
 		SDL_RenderRect(game.renderer, &cursorRect);
 		if(game.debugMode){
-			FC_Draw(game.font,game.renderer,mx,my-18,"%d:%d",tx,ty);
+			FC_Draw(game.font,game.renderer,mx,my-18,"%d:%d:%s",tx,ty,biomeName(game.map->getBiome(posTile(tx,ty))));
 		}
 	}
 }

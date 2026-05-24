@@ -8,15 +8,17 @@ Map::Chunk::Chunk(Map* map, posChunk p) :pos(p), map(map){
 void Map::Chunk::generate(){
 	const int gx = pos.x * chSize;
 	const int gy = pos.y * chSize;
+	const Biome biome = map->getBiome(pos);
 	std::mt19937 rng((size_t) ((uint64_t) mapSeed * mapSeed) + pos.x + pos.y * mapSeed);
 	const int treeHeight = map->terrainHeight(gx + chSize / 2);
+	
 	for(int i = 0; i < chSize; i++){
 		const int n1 = map->terrainHeight(gx + i);
 		for(int j = 0; j < chSize; j++){
 			if(j + gy < n1){
 				Block b = Block(Tile::AIR, Tile::AIR, 0, 127);
 				b.skyView = true;
-				if(gy + j > 0)b.fluid = 2;
+				if(biome!=Biome::DESERT && gy + j > 0)b.fluid = 2;
 				data[i + j * chSize] = b;
 			} else if(j + gy == n1){
 				if(gy + j < 0)
@@ -37,10 +39,16 @@ void Map::Chunk::generate(){
 					data[i + j * chSize] = Block(Tile::STONE, Tile::STONE, 0);
 				}
 			}
+			const float caveNoise = perlin.octave2D_01((gx + i) * 0.04f, (gy + j) * 0.04f, 4);
+			if(caveNoise > 0.7f){
+				data[i + j * chSize].t = Tile::AIR;
+				data[i + j * chSize].lightSource = false;
+			}
 		}
 	}
+
 	const short treeY = (short) floor(treeHeight / (float)chSize);
-	if(treeY == pos.y && treeHeight <= 0)generateTree(chSize / 2, treeHeight - gy);
+	if(biome == Biome::FOREST && treeY == pos.y && treeHeight <= 0)generateTree(chSize / 2, treeHeight - gy);
 
 	for(int x = 0; x < chSize; x++){
 		for(int y = 0; y < chSize; y++){

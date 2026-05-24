@@ -45,7 +45,6 @@ constexpr uint8_t cInventorySize = cHotbarSize*4;
 constexpr uint8_t cItemStackSize = 10;
 constexpr size_t cPlaceTimeoutMillis = 250;
 constexpr size_t tileMapWidth = 10, tileMapHeight = 10;
-constexpr size_t cTerrainSteepness = 80;
 constexpr SDL_Rect tileRect{0,0,tileSize,tileSize};
 constexpr SDL_FRect tileFRect{0,0,tileSize,tileSize};
 const std::string magic{"JustAGame"};
@@ -143,6 +142,7 @@ bool isSolid(Tile t);
 bool hasBackground(Tile t);
 Tile destroyResult(Tile t, Tool l);
 int durability(Tile t);
+const char* biomeName(Biome b);
 
 /*
 * CLASS DEFINITIONS
