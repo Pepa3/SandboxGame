@@ -11,7 +11,6 @@ void Map::Chunk::generate(){
 	const int gy = pos.y * chSize;
 	const Biome biome = map->getBiome(pos);
 	std::mt19937 rng((size_t) ((uint64_t) mapSeed * mapSeed) + pos.x + pos.y * mapSeed);
-	const int treeHeight = map->terrainHeight(gx + chSize / 2);
 	
 	for(int i = 0; i < chSize; i++){
 		const int n1 = map->terrainHeight(gx + i);
@@ -22,14 +21,11 @@ void Map::Chunk::generate(){
 				if(biome!=Biome::DESERT && gy + j > 0)b.fluid = 2;
 				data[i + j * chSize] = b;
 			} else if(j + gy == n1){
-				if(gy + j < 0){
-					if(biome == Biome::DESERT){
-						data[i + j * chSize] = Block(Tile::SAND, Tile::SAND, 0);
-					} else{
-						data[i + j * chSize] = Block(Tile::GRASS, Tile::DIRT, 0);
-					}
-				} else
-					data[i + j * chSize] = Block(Tile::SAND, Tile::AIR, 0);
+				if(biome == Biome::DESERT){
+					data[i + j * chSize] = Block(Tile::SAND, Tile::SAND, 0);
+				} else{
+					data[i + j * chSize] = Block(Tile::GRASS, Tile::DIRT, 0);
+				}
 			} else if(j + gy < n1 + dirtHeight){
 				if(biome == Biome::DESERT){
 					data[i + j * chSize] = Block(Tile::SAND, Tile::SAND, 0);
@@ -56,9 +52,17 @@ void Map::Chunk::generate(){
 			}
 		}
 	}
-
-	const short treeY = (short) floor(treeHeight / (float)chSize);
-	if(biome == Biome::FOREST && treeY == pos.y && treeHeight <= 0)generateTree(chSize / 2, treeHeight - gy);
+	if(biome == Biome::FOREST){
+		std::uniform_int_distribution<> dist(0, 10000);
+		for(int i = 4; i < chSize - 4; i++){
+			const bool hasTree = dist(rng) > 8000;
+			if(hasTree){
+				const int treeHeight = map->terrainHeight(gx + i);
+				const short treeChY = (short) floor(treeHeight / (float) chSize);
+				if(treeChY == pos.y && treeHeight <= 0)generateTree(i, treeHeight - gy);
+			}
+		}
+	}
 
 	for(int x = 0; x < chSize; x++){
 		for(int y = 0; y < chSize; y++){

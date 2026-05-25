@@ -332,13 +332,13 @@ int Map::terrainHeight(int x)const{
 Biome Map::getBiome(posChunk pos)const{
 	const float n = perlin.noise2D((float)pos.x*0.1f, 10);
 
-	if(n < -0.25f)
+	if(n < -0.5f)
 		return Biome::DESERT;
 
-	if(n < 0.15f)
+	if(n < -0.1f)
 		return Biome::PLAINS;
 
-	if(n < 0.45f)
+	if(n < 0.2f)
 		return Biome::FOREST;
 
 	return Biome::MOUNTAINS;
