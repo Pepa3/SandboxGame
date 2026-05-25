@@ -88,12 +88,14 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv){
 
 void AppUpdate(std::stop_token stoken){
 	while(!stoken.stop_requested()){
+		int cChG1 = game.countChunkGen;
 		const auto t = std::chrono::high_resolution_clock::now();
 		game.map->update();
 		const auto t2 = std::chrono::high_resolution_clock::now();
-		/*if(t2 > t + std::chrono::milliseconds(1000 / 40)){
-			std::cerr << "Update took too long: " << (t2-t).count()/1000000 << "ms\n";
-		}*/
+		int cChG2 = game.countChunkGen;
+		if(t2 > t + std::chrono::milliseconds(1000 / 40)){
+			std::cerr << "Update took too long: " << (t2-t).count()/1000000 << "ms CG:"<<cChG2-cChG1<<"\n";
+		}
 		std::this_thread::sleep_until(t+std::chrono::milliseconds(1000/40));
 	}
 }

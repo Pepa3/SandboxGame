@@ -1,5 +1,6 @@
 #include "Helper.h"
 
+//Chunk generation takes approximately 14 ms
 Map::Chunk::Chunk(Map* map, posChunk p) :pos(p), map(map){
 	std::cout << "Created chunk [" << p.x << "][" << p.y << "]" << std::endl;
 	generate();
@@ -21,12 +22,21 @@ void Map::Chunk::generate(){
 				if(biome!=Biome::DESERT && gy + j > 0)b.fluid = 2;
 				data[i + j * chSize] = b;
 			} else if(j + gy == n1){
-				if(gy + j < 0)
-					data[i + j * chSize] = Block(Tile::GRASS, Tile::DIRT, 0);
-				else
+				if(gy + j < 0){
+					if(biome == Biome::DESERT){
+						data[i + j * chSize] = Block(Tile::SAND, Tile::SAND, 0);
+					} else{
+						data[i + j * chSize] = Block(Tile::GRASS, Tile::DIRT, 0);
+					}
+				} else
 					data[i + j * chSize] = Block(Tile::SAND, Tile::AIR, 0);
-			} else if(j + gy < n1 + dirtHeight)data[i + j * chSize] = Block(Tile::DIRT, Tile::DIRT, 0);
-			else{
+			} else if(j + gy < n1 + dirtHeight){
+				if(biome == Biome::DESERT){
+					data[i + j * chSize] = Block(Tile::SAND, Tile::SAND, 0);
+				} else{
+					data[i + j * chSize] = Block(Tile::DIRT, Tile::DIRT, 0);
+				}
+			} else{
 				std::uniform_int_distribution<> dist(0, 10000);
 				const bool oreG = dist(rng) > 9990;
 				const bool oreC = dist(rng) > 9990;
