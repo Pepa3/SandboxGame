@@ -119,6 +119,7 @@ Block Map::destroy(posTile p, Tool tool){
 
 void Map::update(){
 	game.countLightUpdates = lightUpdateQueue.size();
+	int cChG = game.countChunkGen;
 	const posChunk ppc = game.player->pos;
 	for(int i = -cUpdateRadius; i <= cUpdateRadius; i++){
 		for(int j = -cUpdateRadius; j <= cUpdateRadius; j++){
@@ -133,6 +134,20 @@ void Map::update(){
 		const posChunk pc = f.first;
 		Chunk* ch = chunkAt(pc);
 		ch->updateLight(f.first-pc,f.second);
+	}
+	if(game.countChunkGen == cChG){//Pre-generates one chunk per update
+		for(int i = -cUpdateRadius - 1; i <= cUpdateRadius + 1 && game.countChunkGen == cChG; i++){
+			for(int j = -cUpdateRadius - 1; j <= cUpdateRadius + 1 && game.countChunkGen == cChG; j++){
+				if(i != -cUpdateRadius - 1 && i != cUpdateRadius + 1 && j != -cUpdateRadius - 1 && j != cUpdateRadius + 1)continue;
+				chunkAt(ppc.x + i, ppc.y + j);
+			}
+		}
+		/*for(int i = -cUpdateRadius - 2; i <= cUpdateRadius + 2 && game.countChunkGen == cChG; i++){
+			for(int j = -cUpdateRadius - 2; j <= cUpdateRadius + 2 && game.countChunkGen == cChG; j++){
+				if(i != -cUpdateRadius - 2 && i != cUpdateRadius + 2 && j != -cUpdateRadius - 2 && j != cUpdateRadius + 2)continue;
+				chunkAt(ppc.x + i, ppc.y + j);
+			}
+		}*/
 	}
 	game.player->update();
 }
@@ -273,7 +288,7 @@ bool Map::load(const std::string& file){//TODO: wont work with texture caching
 int Map::terrainHeight(int x)const{
 	float f = 1;
 	size_t a = 0;
-	switch(getBiome(posTile(x,0))){
+	switch(getBiome(posTile(x, 0))){
 	case Biome::PLAINS:
 		a = 30;
 		f = 0.01f;
@@ -290,6 +305,26 @@ int Map::terrainHeight(int x)const{
 		a = 80;
 		f = 0.02f;
 		break;
+	}
+	posTile p = posTile(x, 0);
+	posChunk pc = p;
+	int xd = p.x - pc.x * chSize;
+	if(xd > chSize / 2){//xd=chSize/2 -- chSize
+		if(getBiome(pc) != getBiome(pc.right())){
+			int tc = terrainHeight(pc.x * chSize + chSize / 2);
+			int tn = terrainHeight(pc.right().x * chSize + chSize / 2);
+			tn = (tc + tn) / 2;
+			int t = (int)(tc + (xd - chSize / 2) * 2.f / chSize * (tn - tc));
+			return t;
+		}
+	} else if(xd < chSize / 2){
+		if(getBiome(pc) != getBiome(pc.left())){
+			int tc = terrainHeight(pc.x * chSize + chSize / 2);
+			int tn = terrainHeight(pc.left().x * chSize + chSize / 2);
+			tn = (tc + tn) / 2;
+			int t = (int)(tn + xd * 2.f / chSize * (tc - tn));
+			return t;
+		}
 	}
 	return (int) (perlin.noise2D(x * f, 1) * a);
 }

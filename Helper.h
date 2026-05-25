@@ -86,6 +86,9 @@ public:
 	position<T, R> right(T n = 1)const{
 		return {x + n, y};
 	}
+	position<T, R> left(T n = 1)const{
+		return {x - n, y};
+	}
 	T dist(const position<T, R>& other){
 		return std::hypot<T>(x-other.x,y-other.y);
 	}
