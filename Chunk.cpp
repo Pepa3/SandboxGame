@@ -16,33 +16,33 @@ void Map::Chunk::generate(){
 		const int n1 = map->terrainHeight(gx + i);
 		for(int j = 0; j < chSize; j++){
 			if(j + gy < n1){
-				Block b = Block(Tile::AIR, Tile::AIR, 0, 127);
+				Block b = Block(Tile::AIR, Tile::AIR, nullFluid, 127);
 				b.skyView = true;
-				if(biome!=Biome::DESERT && gy + j > 0)b.fluid = 2;
+				if(biome != Biome::DESERT && gy + j > 0)b.fluid = fluid_t(fluid_t::type::WATER,2.f);
 				data[i + j * chSize] = b;
 			} else if(j + gy == n1){
 				if(biome == Biome::DESERT){
-					data[i + j * chSize] = Block(Tile::SAND, Tile::SAND, 0);
+					data[i + j * chSize] = Block(Tile::SAND, Tile::SAND);
 				} else{
-					data[i + j * chSize] = Block(Tile::GRASS, Tile::DIRT, 0);
+					data[i + j * chSize] = Block(Tile::GRASS, Tile::DIRT);
 				}
 			} else if(j + gy < n1 + dirtHeight){
 				if(biome == Biome::DESERT){
-					data[i + j * chSize] = Block(Tile::SAND, Tile::SAND, 0);
+					data[i + j * chSize] = Block(Tile::SAND, Tile::SAND);
 				} else{
-					data[i + j * chSize] = Block(Tile::DIRT, Tile::DIRT, 0);
+					data[i + j * chSize] = Block(Tile::DIRT, Tile::DIRT);
 				}
 			} else{
 				std::uniform_int_distribution<> dist(0, 10000);
 				const bool oreG = dist(rng) > 9990;
 				const bool oreC = dist(rng) > 9990;
 				if(oreG){
-					data[i + j * chSize] = Block(Tile::GLOW, Tile::STONE, 0);
+					data[i + j * chSize] = Block(Tile::GLOW, Tile::STONE);
 					data[i + j * chSize].lightSource = true;
 				} else if(oreC){
-					data[i + j * chSize] = Block(Tile::COAL, Tile::STONE, 0);
+					data[i + j * chSize] = Block(Tile::COAL, Tile::STONE);
 				} else{
-					data[i + j * chSize] = Block(Tile::STONE, Tile::STONE, 0);
+					data[i + j * chSize] = Block(Tile::STONE, Tile::STONE);
 				}
 			}
 			const float caveNoise = perlin.octave2D_01((gx + i) * 0.04f, (gy + j) * 0.04f, 4);
@@ -81,31 +81,31 @@ void Map::Chunk::generateTree(int tx, int ty){
 	const int my = pos.y * chSize;
 	for(int i = 0; i < 6; i++){
 		if(ty - i >= 0){
-			data[tx + (ty - i) * chSize] = Block(Tile::WOOD, Tile::AIR, 0);
+			data[tx + (ty - i) * chSize] = Block(Tile::WOOD, Tile::AIR);
 		} else{
-			map->world(mx + tx, my + ty - i) = Block(Tile::WOOD, Tile::AIR, 0);
+			map->world(mx + tx, my + ty - i) = Block(Tile::WOOD, Tile::AIR);
 		}
 	}
 	for(int j = 1; j <= 3; j++){
 		for(int i = 2 + j; i < 9 - j; i++){
 			if(ty - i >= 0 && tx - j >= 0 && j < chSize){
-				data[-j + tx + (ty - i) * chSize] = Block(Tile::LEAVES, Tile::AIR, 0);
-				data[j + tx + (ty - i) * chSize] = Block(Tile::LEAVES, Tile::AIR, 0);
+				data[-j + tx + (ty - i) * chSize] = Block(Tile::LEAVES, Tile::AIR);
+				data[j + tx + (ty - i) * chSize] = Block(Tile::LEAVES, Tile::AIR);
 			} else{
-				map->world(mx - j + tx, my + ty - i) = Block(Tile::LEAVES, Tile::AIR, 0);
-				map->world(mx + j + tx, my + ty - i) = Block(Tile::LEAVES, Tile::AIR, 0);
+				map->world(mx - j + tx, my + ty - i) = Block(Tile::LEAVES, Tile::AIR);
+				map->world(mx + j + tx, my + ty - i) = Block(Tile::LEAVES, Tile::AIR);
 			}
 		}
 	}
 	if(ty >= 7){
-		data[tx + (ty - 7) * chSize] = Block(Tile::LEAVES, Tile::AIR, 0);
+		data[tx + (ty - 7) * chSize] = Block(Tile::LEAVES, Tile::AIR);
 	} else{
-		map->world(mx + tx, my + ty - 7) = Block(Tile::LEAVES, Tile::AIR, 0);
+		map->world(mx + tx, my + ty - 7) = Block(Tile::LEAVES, Tile::AIR);
 	}
 	if(ty >= 6){
-		data[tx + (ty - 6) * chSize] = Block(Tile::LEAVES, Tile::AIR, 0);
+		data[tx + (ty - 6) * chSize] = Block(Tile::LEAVES, Tile::AIR);
 	} else{
-		map->world(mx + tx, my + ty - 6) = Block(Tile::LEAVES, Tile::AIR, 0);
+		map->world(mx + tx, my + ty - 6) = Block(Tile::LEAVES, Tile::AIR);
 	}
 }
 
@@ -119,32 +119,40 @@ void Map::Chunk::update(){
 					: map->world(pos.x * chSize + i, pos.y * chSize + j + 1);
 				if(under.t == Tile::AIR){
 					const Block tmp = b;
-					b = Block(under.t, b.bg, under.fluid, 0);
+					b = Block(under.t, b.bg, under.fluid);
 					under = Block(tmp.t, under.bg, tmp.fluid, tmp.light);
 					map->updateLight(pos.x * chSize + i, pos.y * chSize + j, false);
 				}
 			}
-			float& fl1 = b.fluid;
-			if(fl1 > 0){
+			fluid_t& fl1 = b.fluid;
+			if(fl1){
 				Block& under = (j < chSize - 1)
 					? data[i + (j + 1) * chSize]
 					: map->world(pos.x * chSize + i, pos.y * chSize + j + 1);
-				float& flu = under.fluid;
-				if(!::isSolid(under.t)){
-					float fl = fl1 + flu;
+				fluid_t& flu = under.fluid;
+				if(!::isSolid(under.t) && (flu.kind == fluid_t::NONE || flu.kind == fl1.kind)){
+					float fl = flu.value + fl1.value;
 					if(fl <= 1){//Fill tile below
-						flu = fl;
-						fl1 = 0;
+						flu.value = fl;
+						fl1.value = 0;
+						flu.kind = fl1.kind;
+						fl1.kind = fluid_t::NONE;
 					} else if(fl > 1 && fl <= 2.25f){//Second tile pressure propagation
-						float k = (fl1 + (flu - 1) * 4) / 2;
-						flu = 1 + k * 0.25f;
-						fl1 = fl - 1 - k * 0.25f;
-					} else if(fl > 2.25){//Deep tile pressure propagation
-						fl1 = (fl - 0.25f) / 2;
-						flu = (fl + 0.25f) / 2;
+						float k = (fl1.value + (flu.value - 1) * 4) / 2;
+						flu.value = 1 + k * 0.25f;
+						fl1.value = fl - 1 - k * 0.25f;
+						flu.kind = fl1.kind;
+					} else if(fl > 2.25f){//Deep tile pressure propagation
+						fl1.value = (fl - 0.25f) / 2;
+						flu.value = (fl + 0.25f) / 2;
+						flu.kind = fl1.kind;
+					}
+				}else if(!::isSolid(under.t) && (flu.kind != fluid_t::NONE && flu.kind != fl1.kind)){
+					if(flu.kind == fluid_t::WATER && fl1.kind == fluid_t::LAVA){
+						std::swap(flu, fl1);
 					}
 				}
-				if(fl1 > 0){
+				if(fl1){
 					//Spill horizontally
 					Block& left = (i > 0)
 						? data[i - 1 + j * chSize]
@@ -152,28 +160,40 @@ void Map::Chunk::update(){
 					Block& right = (i < chSize - 1)
 						? data[i + 1 + j * chSize]
 						: map->world(pos.x * chSize + i + 1, pos.y * chSize + j);
-					float fldl = fl1 - left.fluid;
-					if(!::isSolid(left.t) && fldl > 0){
-						fl1 -= fldl / 2;
-						left.fluid += fldl / 2;
-					}
-					float fldr = fl1 - right.fluid;
-					if(!::isSolid(right.t) && fldr > 0){
-						fl1 -= fldr / 2;
-						right.fluid += fldr / 2;
-					}
+					float fldl = fl1.value - left.fluid.value;
+					if(!::isSolid(left.t) && fldl > 0 && (left.fluid.kind == fluid_t::NONE || left.fluid.kind == fl1.kind)){
+						fl1.value -= fldl / 2;
+						left.fluid.value += fldl / 2;
+						left.fluid.kind = fl1.kind;
+					} else if(!::isSolid(left.t) && (left.fluid.kind != fluid_t::NONE && left.fluid.kind != fl1.kind)){
+						if(left.fluid.kind == fluid_t::WATER && fl1.kind == fluid_t::LAVA){
+							std::swap(left.fluid, fl1);
+						}
+					}//TODO: left-biased
+					float fldr = fl1.value - right.fluid.value;
+					if(!::isSolid(right.t) && fldr > 0 && (right.fluid.kind == fluid_t::NONE || right.fluid.kind == fl1.kind)){
+						fl1.value -= fldr / 2;
+						right.fluid.value += fldr / 2;
+						right.fluid.kind = fl1.kind;
+					}/* else if(!::isSolid(right.t) && (right.fluid.kind != fluid_t::NONE && right.fluid.kind != fl1.kind)){
+						if(right.fluid.kind == fluid_t::WATER && fl1.kind == fluid_t::LAVA){
+							std::swap(right.fluid, fl1);
+						}
+					}*/
 				}
-				if(fl1 > 1){
+				if(fl1.value > 1.f){
 					//Propagate up if high pressure
 					Block& up = (j > 0)
 						? data[i + (j - 1) * chSize]
 						: map->world(pos.x * chSize + i, pos.y * chSize + j - 1);
-					if(!::isSolid(up.t) && up.fluid == 0){
-						float fld = fl1 - 1;
-						fl1 -= fld / 2;
-						up.fluid += fld / 2;
+					if(!::isSolid(up.t) && !up.fluid){
+						float fld = fl1.value - 1;
+						fl1.value -= fld / 2;
+						up.fluid.value += fld / 2;
+						up.fluid.kind = fl1.kind;
 					}
 				}
+				if(fl1.value <= 0.01f)fl1 = nullFluid;//TODO: a better min value?
 			}
 		}
 	}

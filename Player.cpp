@@ -59,9 +59,6 @@ void Player::update(){//TODO: ugly, it still does not work ideally, but it works
 						game.map->updateLight(tx, ty);
 						breakMaxDurability = durability(hotbar[selectedSlot].type);
 					}
-				} else if(game.debugMode){
-					game.map->world(tx, ty).lightSource = !game.map->world(tx, ty).lightSource;
-					game.map->updateLight(tx, ty);
 				}
 			}
 		} else if(button & SDL_BUTTON_LMASK){
@@ -78,7 +75,7 @@ void Player::update(){//TODO: ugly, it still does not work ideally, but it works
 	posTile m = pos;
 	Tile tdr = game.map->world(m.down().right()).t;
 	// on ground if both blocks under player are solid unless standing exactly on tile, then not on ground
-	onGround = isSolid(game.map->world(m.down()).t) || (m.x-(pos.x/tileSize) != 0.f && isSolid(tdr));
+	bool onGround = isSolid(game.map->world(m.down()).t) || (m.x-(pos.x/tileSize) != 0.f && isSolid(tdr));
 
 	//can move if not going to be blocked and in air not blocked by both tiles
 
@@ -121,7 +118,7 @@ void Player::update(){//TODO: ugly, it still does not work ideally, but it works
 
 	if(!onGround){// IN AIR (or water)
 		yVel += cGravity;
-		if(b.fluid != 0){
+		if(b.fluid){
 			yVel = cSinkRate;
 			if(key_states[SDL_SCANCODE_W]){
 				yVel = -cJumpImpulse;
@@ -154,6 +151,19 @@ void Player::handleKeyDown(char key){
 		openInventory = !openInventory;
 	} else if(key == SDLK_ESCAPE){
 		openInventory = false;
+	} 
+	if(game.debugMode){
+		float mx, my;
+		SDL_GetMouseState(&mx,&my);
+		int tx = game.map->tPosX(mx), ty = game.map->tPosY(my);
+		if(key == SDLK_L){
+			game.map->world(tx, ty).lightSource = !game.map->world(tx, ty).lightSource;
+			game.map->updateLight(tx, ty);
+		} else if(key == SDLK_K){
+			game.map->world(tx, ty).fluid = fluid_t(fluid_t::LAVA, 1);
+		}else if(key == SDLK_J){
+			game.map->spawnEntity(posTile{tx, ty});
+		}
 	}
 }
 
@@ -291,7 +301,6 @@ void Player::save(std::ofstream& out) const{
 	write(out, &pos.x);
 	write(out, &pos.y);
 	write(out, &yVel);
-	write(out, &onGround);
 	write(out, &hotbar);
 	write(out, &inventory);
 	write(out, &holding);
@@ -306,7 +315,6 @@ void Player::load(std::ifstream& in){
 	read(in, &pos.x);
 	read(in, &pos.y);
 	read(in, &yVel);
-	read(in, &onGround);
 	read(in, &hotbar);
 	for(uint8_t i = 0; i < cHotbarSize; i++){
 		if(hotbar[i].count == 0)hotbar[i].type = Tile::UNKNOWN;

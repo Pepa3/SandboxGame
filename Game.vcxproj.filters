@@ -36,6 +36,9 @@
     <ClCompile Include="SDL_FontCache\SDL_FontCache.c">
       <Filter>Zdrojové soubory</Filter>
     </ClCompile>
+    <ClCompile Include="Entity.cpp">
+      <Filter>Zdrojové soubory</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Helper.h">

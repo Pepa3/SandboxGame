@@ -87,20 +87,24 @@ void Map::updateLight(posTile pos, bool genStep){
 	}
 }
 
+void Map::spawnEntity(posTile pos){
+	entities.push_back(Entity(pos));
+}
+
 bool Map::place(int x, int y, Tile t){
 	Block& b = world(x, y);
 	if(::isSolid(b.t)){
 		return false;
 	}
-	if(b.fluid > 0){//TODO:fluid can be destroyed here
+	if(b.fluid){//TODO:fluid can be destroyed here
 		Block& up = world(x, y - 1);
 		if(!::isSolid(up.t)){
-			up.fluid = fminf(b.fluid+up.fluid,1);
+			up.fluid.value += fminf(b.fluid.value,0xff-up.fluid.value);
 		}
 	}
 	b.t = t;
 	b.skyView = false;
-	b.fluid = 0;
+	b.fluid = nullFluid;
 	return true;
 }
 
@@ -142,14 +146,18 @@ void Map::update(){
 				chunkAt(ppc.x + i, ppc.y + j);
 			}
 		}
-		/*for(int i = -cUpdateRadius - 2; i <= cUpdateRadius + 2 && game.countChunkGen == cChG; i++){
+		for(int i = -cUpdateRadius - 2; i <= cUpdateRadius + 2 && game.countChunkGen == cChG; i++){
 			for(int j = -cUpdateRadius - 2; j <= cUpdateRadius + 2 && game.countChunkGen == cChG; j++){
 				if(i != -cUpdateRadius - 2 && i != cUpdateRadius + 2 && j != -cUpdateRadius - 2 && j != cUpdateRadius + 2)continue;
 				chunkAt(ppc.x + i, ppc.y + j);
 			}
-		}*/
+		}
 	}
 	game.player->update();
+	for(auto& e : entities){
+		e.update(game);
+	}
+	std::erase_if(entities, [](const Entity& e)->bool{return e.dead; });
 }
 
 void Map::render()const{
@@ -185,12 +193,24 @@ void Map::render()const{
 					} else{
 						SDL_RenderTexture(game.renderer, game.tiles[(int) b.t], &tileFRect, &dest);
 					}
-					if(b.fluid > 0){
-						const SDL_FRect fluidRect = {posX(x),posY(y) + tileSize * (1 - fminf(b.fluid,1)),(float) tileSize,tileSize * fminf(b.fluid,1)};
-						SDL_SetRenderDrawColor(game.renderer, 0x44, 0x44, 0xaa, 0xff);
+					if(b.fluid){
+						const SDL_FRect fluidRect = {posX(x),posY(y) + tileSize * (1 - fminf(b.fluid.value,1.f)),
+							(float) tileSize,tileSize * fminf(b.fluid.value,1.f)};
+						switch(b.fluid.kind){
+						case fluid_t::type::LAVA:
+							SDL_SetRenderDrawColor(game.renderer, 0xcc, 0x22, 0x22, 0xff);
+							break;
+						case fluid_t::type::WATER:
+							SDL_SetRenderDrawColor(game.renderer, 0x44, 0x44, 0xaa, 0xff);
+							break;
+						case fluid_t::type::NONE:
+						default:
+							SDL_SetRenderDrawColor(game.renderer, 0xaa, 0xaa, 0xaa, 0xff);
+							break;
+						}
 						SDL_RenderFillRect(game.renderer, &fluidRect);
 						if(game.overlayFluid){
-							FC_Draw(game.font, game.renderer, dest.x, dest.y + tileSize / 2, "%.1f", b.fluid);
+							FC_Draw(game.font, game.renderer, dest.x, dest.y + tileSize / 2 - 9, "%.1f", b.fluid.value);
 						}
 					}
 					//if(b.light != 127){
@@ -227,6 +247,9 @@ void Map::render()const{
 		const SDL_FRect chunkRect3 = {posX(chEndX * chSize), posY(chEndY * chSize),chSize * tileSize,chSize * tileSize};
 		SDL_SetRenderDrawColor(game.renderer, 0xff, 0, 0xff, 0xff);
 		SDL_RenderRect(game.renderer, &chunkRect3);
+	}
+	for(const auto& e : entities){
+		if(!e.dead)	e.render(game);
 	}
 	game.player->render();
 }

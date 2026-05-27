@@ -93,6 +93,17 @@ public:
 		return std::hypot<T>(x-other.x,y-other.y);
 	}
 };
+class fluid_t{
+public:
+	enum type{NONE,WATER,LAVA};
+	constexpr fluid_t(type kind, float value):kind(kind),value(value){}
+	type kind = NONE;
+	float value = 0;
+	operator bool()const{
+		return kind != NONE;
+	}
+};
+constexpr fluid_t nullFluid = fluid_t(fluid_t::NONE, 0.f);
 
 using posWorld = position<float, 1>;
 using posTile = position<int, tileSize>;
@@ -153,19 +164,35 @@ const char* biomeName(Biome b);
 class Map;
 class Player;
 class Item;
+class Entity;
 struct GameState;
 
 class Block{
 public:
-	constexpr Block(Tile t1, Tile bgnd, float fl = 0, char lght = 0):fluid(fl),t(t1),bg(bgnd),light(lght){}
+	constexpr Block(Tile t1, Tile bgnd, fluid_t fl=nullFluid, char lght = 0) :fluid(fl), t(t1), bg(bgnd), light(lght){}
 	Block() = default;
-	float fluid = 0;//0 - 1 - 1.25 - 1.25+0.25*depth
+	fluid_t fluid{nullFluid};//0 - 1 - 1.25 - 1.25+0.25*depth
 	Tile t = Tile::UNKNOWN;//Foreground tile
 	Tile bg = Tile::UNKNOWN;//Background tile
 	char light = 0;//0-127
 	bool lightSource:1 = false;
 	bool skyView:1 = false;
 	bool hasScheduledLightUpdate:1 = false;
+};
+
+class Entity{
+	friend Map;
+public:
+	Entity(posWorld pos) :pos(pos){};
+	Entity(float x, float y) :Entity(posWorld{x,y}){};
+	void update(const GameState& game);
+	void render(const GameState& game)const;
+	void save(std::ofstream& out) const;
+	void load(std::ifstream& in);
+private:
+	posWorld pos{0,0};
+	float yVel = 0.f;
+	bool dead:1 = false;
 };
 
 class Map{
@@ -218,11 +245,13 @@ public:
 	bool chunkExists(short x, short y)const{ return chunkExists({x,y}); }
 	int terrainHeight(int x)const;
 	Biome getBiome(posChunk pos)const;
+	void spawnEntity(posTile pos);
 
 private:
 	GameState& game;
 	std::unordered_map<posChunk, std::unique_ptr<Chunk>> chunks{};
 	std::queue<std::pair<posTile, bool>> lightUpdateQueue;
+	std::vector<Entity> entities{};
 };
 
 class Item{
@@ -242,6 +271,7 @@ private:
 class Player{
 	friend Map;
 	friend Item;
+	friend Entity;
 public:
 	Player(GameState& game, posWorld p);
 	void renderInventory()const;
@@ -262,7 +292,6 @@ private:
 	};
 	posWorld pos;
 	float yVel = 0.f;
-	bool onGround = false;
 	ItemSlot hotbar[cHotbarSize];
 	ItemSlot inventory[cInventorySize];
 	ItemSlot holding{};

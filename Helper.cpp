@@ -173,5 +173,8 @@ const char* biomeName(Biome b){
         return "Desert";
     case Biome::MOUNTAINS:
         return "Mountains";
+    default:
+        assert(false && "Biome has no name!");
+        return "";
     }
 }

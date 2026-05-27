@@ -1,6 +1,6 @@
 #include "Helper.h"
 
-void Item::update(const GameState& game){
+void Item::update(const GameState& game){//TODO: const?
 	if(pickedUp)return;
 	if(pos.dist(game.player->pos + posWorld{tileSize/2.f,tileSize/2.f}) < tileSize*2){
 		if(game.player->addInventory(t)){
