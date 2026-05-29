@@ -183,6 +183,7 @@ public:
 class Entity{
 	friend Map;
 public:
+	Entity() = default;
 	Entity(posWorld pos) :pos(pos){};
 	Entity(float x, float y) :Entity(posWorld{x,y}){};
 	void update(const GameState& game);
@@ -251,7 +252,7 @@ private:
 	GameState& game;
 	std::unordered_map<posChunk, std::unique_ptr<Chunk>> chunks{};
 	std::queue<std::pair<posTile, bool>> lightUpdateQueue;
-	std::vector<Entity> entities{};
+	std::vector<Entity> entities{};//TODO: entities per Chunk?
 };
 
 class Item{

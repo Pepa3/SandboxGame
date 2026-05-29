@@ -262,10 +262,15 @@ bool Map::save(const std::string& file)const{
 	}
 	write(out, magic);
 	game.player.get()->save(out);
-	const uint32_t count = chunks.size();
-	write(out, &count);
+	const uint32_t countCh = chunks.size();
+	write(out, &countCh);
 	for(const auto& ch : chunks){
 		ch.second->save(out);
+	}
+	const uint32_t countE = entities.size();
+	write(out, &countE);
+	for(const auto& e : entities){
+		e.save(out);
 	}
 	write(out, &chSize);
 	out.close();
@@ -295,6 +300,12 @@ bool Map::load(const std::string& file){//TODO: wont work with texture caching
 		std::unique_ptr<Chunk> ch = std::make_unique<Chunk>(this);
 		ch->load(in);
 		chunks[ch->pos] = std::move(ch);
+	}
+	read(in, &tmpCount);
+	for(size_t i = 0; i < tmpCount; i++){
+		Entity e = Entity();
+		e.load(in);
+		entities.push_back(e);
 	}
 	int tmpChSize;
 	read(in, &tmpChSize);
