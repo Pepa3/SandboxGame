@@ -38,6 +38,7 @@ bool Player::addInventory(Tile t){
 
 void Player::update(){//TODO: ugly, it still does not work ideally, but it works with negative positions
 	const bool* key_states = SDL_GetKeyboardState(NULL);
+	bool moveUp = key_states[SDL_SCANCODE_W] || key_states[SDL_SCANCODE_SPACE];
 
 	float mox, moy;
 	const int button = SDL_GetMouseState(&mox, &moy);
@@ -63,7 +64,7 @@ void Player::update(){//TODO: ugly, it still does not work ideally, but it works
 			}
 		} else if(button & SDL_BUTTON_LMASK){
 			const Block& b = game.map->world(tx, ty);
-			if(isSolid(b.t)){
+			if(isDestroyable(b.t)){
 				breakDurability++;
 				if(game.debugMode || breakDurability >= breakMaxDurability){
 					breakDurability = 0;
@@ -120,7 +121,7 @@ void Player::update(){//TODO: ugly, it still does not work ideally, but it works
 		yVel += cGravity;
 		if(b.fluid){
 			yVel = cSinkRate;
-			if(key_states[SDL_SCANCODE_W]){
+			if(moveUp){
 				yVel = -cJumpImpulse;
 			}else if(key_states[SDL_SCANCODE_S]){
 				yVel = cJumpImpulse;
@@ -129,7 +130,7 @@ void Player::update(){//TODO: ugly, it still does not work ideally, but it works
 		if(mayBeOnGround && distanceToTileBoundary < yVel)yVel = distanceToTileBoundary;
 	}else{// ON GROUND
 		yVel = 0;
-		if(key_states[SDL_SCANCODE_W]){
+		if(moveUp){
 			yVel = -cJumpImpulse;
 		}
 	}

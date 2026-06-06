@@ -153,6 +153,7 @@ enum class Biome :uint8_t{
 };
 
 bool isSolid(Tile t);
+bool isDestroyable(Tile t);
 bool hasBackground(Tile t);
 Tile destroyResult(Tile t, Tool l);
 int durability(Tile t);

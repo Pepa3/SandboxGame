@@ -110,7 +110,7 @@ bool Map::place(int x, int y, Tile t){
 
 Block Map::destroy(posTile p, Tool tool){
 	Block& b = world(p);
-	if(!::isSolid(b.t))return nullBlock;
+	if(!::isDestroyable(b.t))return nullBlock;
 	Block c = b;
 	c.t = destroyResult(c.t, tool);
 	b.t = Tile::AIR;

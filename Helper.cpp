@@ -91,6 +91,14 @@ bool isSolid(Tile t){
         return true;
     }
 }
+bool isDestroyable(Tile t){
+    switch(t){
+    case Tile::AIR:
+        return false;
+    default:
+        return true;
+    }
+}
 bool hasBackground(Tile t){
     switch(t){
     case Tile::AIR:
