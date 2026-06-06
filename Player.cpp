@@ -35,7 +35,7 @@ bool Player::addInventory(Tile t){
 
 	return false;
 }
-
+//TODO: dropping items
 void Player::update(){//TODO: ugly, it still does not work ideally, but it works with negative positions
 	const bool* key_states = SDL_GetKeyboardState(NULL);
 	bool moveUp = key_states[SDL_SCANCODE_W] || key_states[SDL_SCANCODE_SPACE];
@@ -100,7 +100,7 @@ void Player::update(){//TODO: ugly, it still does not work ideally, but it works
 		}
 	}
 	m.x = (int) floorf(pos.x / tileSize);
-
+	float lastYVel = yVel;
 	float distanceToTileBoundary = (m.y - pos.y / tileSize)*tileSize;
 	if(!isSolid(game.map->world(m.x, (int) floorf((pos.y + yVel) / tileSize)).t)
 		&& !(m.x - (pos.x / tileSize) != 0.f && isSolid(game.map->world(m.x + 1, (int) floorf((pos.y + yVel) / tileSize)).t))){
@@ -118,21 +118,29 @@ void Player::update(){//TODO: ugly, it still does not work ideally, but it works
 	const Block& b = game.map->world(m.x, m.y);
 
 	if(!onGround){// IN AIR (or water)
-		yVel += cGravity;
-		if(b.fluid){
-			yVel = cSinkRate;
-			if(moveUp){
+		if(b.fluid){//in water
+			//cant immediately switch from moving up to down / down to up
+			if(yVel <= cSinkRate && moveUp){
 				yVel = -cJumpImpulse;
-			}else if(key_states[SDL_SCANCODE_S]){
+			}else if(yVel >= 0 && key_states[SDL_SCANCODE_S]){
 				yVel = cJumpImpulse;
+			} else{
+				yVel = cSinkRate;
 			}
+		} else{
+			yVel += cGravity;
 		}
 		if(mayBeOnGround && distanceToTileBoundary < yVel)yVel = distanceToTileBoundary;
 	}else{// ON GROUND
-		yVel = 0;
-		if(moveUp){
+		if(yVel==0 && moveUp){
 			yVel = -cJumpImpulse;
+		} else{
+			yVel = 0;
 		}
+	}
+	if(lastYVel != 0 && lastYVel - yVel > cYFallThreshold){
+		health-=(lastYVel-yVel)*cYFallDamage;
+		std::cout << lastYVel << "|" << yVel << std::endl;
 	}
 }
 
@@ -280,6 +288,10 @@ void Player::render()const{
 			SDL_RenderTexture(game.renderer, game.tiles[(int) hotbar[i].type], &tileFRect, &itemRect);
 			FC_Draw(game.font, game.renderer, itemRect.x+tileSize/3, itemRect.y + tileSize*3/2, "%u", hotbar[i].count);
 		}
+		SDL_SetRenderDrawColor(game.renderer, 0x88, 0, 0, 0xff);
+		SDL_RenderFillCircle(game.renderer, 100, 100, 50);
+		SDL_SetRenderDrawColor(game.renderer, 0xff, 0, 0, 0xff);
+		SDL_RenderFillCircle(game.renderer, 100, 100, health / 20);
 	}
 	if(openInventory){
 		renderInventory();
@@ -302,6 +314,7 @@ void Player::save(std::ofstream& out) const{
 	write(out, &pos.x);
 	write(out, &pos.y);
 	write(out, &yVel);
+	write(out, &health);
 	write(out, &hotbar);
 	write(out, &inventory);
 	write(out, &holding);
@@ -316,6 +329,7 @@ void Player::load(std::ifstream& in){
 	read(in, &pos.x);
 	read(in, &pos.y);
 	read(in, &yVel);
+	read(in, &health);
 	read(in, &hotbar);
 	for(uint8_t i = 0; i < cHotbarSize; i++){
 		if(hotbar[i].count == 0)hotbar[i].type = Tile::UNKNOWN;

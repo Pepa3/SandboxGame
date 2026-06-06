@@ -40,6 +40,9 @@ constexpr int caveCount = 7;
 constexpr int caveDistance = 40;
 constexpr int maxlightUpdateCount = 500;
 constexpr int minUpdateTimeMillis = 25;
+constexpr int cPlayerMaxHealth = 1000;
+constexpr float cYFallThreshold = 10;
+constexpr float cYFallDamage = 10;
 constexpr uint8_t cHotbarSize = 5;
 constexpr uint8_t cInventorySize = cHotbarSize*4; 
 constexpr uint8_t cItemStackSize = 10;
@@ -294,6 +297,7 @@ private:
 	};
 	posWorld pos;
 	float yVel = 0.f;
+	int health = cPlayerMaxHealth;
 	ItemSlot hotbar[cHotbarSize];
 	ItemSlot inventory[cInventorySize];
 	ItemSlot holding{};
