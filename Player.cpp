@@ -117,6 +117,7 @@ void Player::update(){//TODO: ugly, it still does not work ideally, but it works
 
 	const Block& b = game.map->world(m.x, m.y);
 
+	bool fellInWater = false;
 	if(!onGround){// IN AIR (or water)
 		if(b.fluid){//in water
 			//cant immediately switch from moving up to down / down to up
@@ -127,6 +128,7 @@ void Player::update(){//TODO: ugly, it still does not work ideally, but it works
 			} else{
 				yVel = cSinkRate;
 			}
+			fellInWater = true;
 		} else{
 			yVel += cGravity;
 		}
@@ -138,8 +140,8 @@ void Player::update(){//TODO: ugly, it still does not work ideally, but it works
 			yVel = 0;
 		}
 	}
-	if(lastYVel != 0 && lastYVel - yVel > cYFallThreshold){
-		health-=(lastYVel-yVel)*cYFallDamage;
+	if(!fellInWater && lastYVel != 0 && lastYVel - yVel > cYFallThreshold){//fall damage
+		health -= (lastYVel - yVel) * cYFallDamage;
 		std::cout << lastYVel << "|" << yVel << std::endl;
 	}
 }
