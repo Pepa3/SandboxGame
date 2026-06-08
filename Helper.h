@@ -157,7 +157,7 @@ enum class Biome :uint8_t{
 	PLAINS,FOREST,DESERT,MOUNTAINS
 };
 enum class Sound :uint8_t{
-	BLOCK_BREAK,BLOCK_PLACE,ITEM_PICKUP,JUMP,LAND,PLAYER_DAMAGE,INVENTORY_ACTION
+	ITEM_PICKUP=1, JUMP, LAND, PLAYER_DAMAGE, INVENTORY_ACTION, BLOCK_BREAK, BLOCK_PLACE, SOUND_COUNT
 };
 
 bool isSolid(Tile t);
@@ -324,7 +324,9 @@ struct GameState{
 	SDL_Window* window = nullptr;
 	SDL_Renderer* renderer = nullptr;
 	FC_Font* font = nullptr;
+	MIX_Mixer* mixer = nullptr;
 	std::array<SDL_Texture*, 0xff> tiles{};
+	std::array<MIX_Audio*, (int)Sound::SOUND_COUNT> sounds{};
 	posWorld camera{0,0};
 	std::unique_ptr<Map> map;
 	std::unique_ptr<Player> player;

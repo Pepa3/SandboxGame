@@ -6,12 +6,13 @@ static GameState game{};
 static double lastFPS = 0;
 static uint64_t frames = 0, time1 = 0;
 void AppUpdate(std::stop_token stoken);
+bool loadAudio();
 
 SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv){
 	if(!SDL_SetAppMetadata("Game", "0.1", "me.pepa3.game")){
 		SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Couldn't set metadata: %s\n", SDL_GetError());
 	}
-	if(!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS)){
+	if(!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_AUDIO)){
 		SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Couldn't initialize SDL context: %s\n", SDL_GetError());
 		return SDL_APP_FAILURE;
 	}
@@ -44,6 +45,19 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv){
 	uint8_t code = 0;
 	if(!(code = FC_LoadFont(game.font, game.renderer, "Roboto-Regular.ttf", 18, FC_MakeColor(0xff, 0xff, 0xff, 0xff), TTF_STYLE_NORMAL))){
 		SDL_Log("Couldn't open font: %u: %s\n", code, SDL_GetError());
+		return SDL_APP_FAILURE;
+	}
+	
+	if(!MIX_Init()){
+		SDL_Log("Couldn't initialize Audio: %s\n", SDL_GetError());
+		return SDL_APP_FAILURE;
+	};
+	if(!(game.mixer = MIX_CreateMixerDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, NULL))){
+		SDL_Log("Couldn't create mixer on default device: %s\n", SDL_GetError());
+		return SDL_APP_FAILURE;
+	}
+	if(!loadAudio()){
+		SDL_Log("Couldn't load audio: %s\n", SDL_GetError());
 		return SDL_APP_FAILURE;
 	}
 
@@ -160,9 +174,26 @@ void SDL_AppQuit(void* appstate, SDL_AppResult result){
 	if(game.map){
 		game.map->save("test1.save");
 	}
+	MIX_Quit();
 	FC_FreeFont(game.font);
 	TTF_Quit();
 	SDL_DestroyRenderer(game.renderer);
 	SDL_DestroyWindow(game.window);
 	SDL_Quit();
+}
+
+bool loadAudio(){
+	game.sounds[1] = MIX_LoadAudio(game.mixer, "sounds/item_pickup.ogg",true);
+	game.sounds[2] = MIX_LoadAudio(game.mixer, "sounds/jump.ogg", true);
+	game.sounds[3] = MIX_LoadAudio(game.mixer, "sounds/land.ogg", true);
+	game.sounds[4] = MIX_LoadAudio(game.mixer, "sounds/player_damage.ogg", true);
+	game.sounds[5] = MIX_LoadAudio(game.mixer, "sounds/inventory_action.ogg", true);
+	game.sounds[6] = MIX_LoadAudio(game.mixer, "sounds/block_break.ogg", true);
+	game.sounds[7] = MIX_LoadAudio(game.mixer, "sounds/block_place.ogg", true);
+	for(size_t i = 1; i < (int)Sound::SOUND_COUNT; i++){
+		if(game.tiles[i] == nullptr){
+			return false;
+		}
+	}
+	return true;
 }
