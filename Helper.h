@@ -41,9 +41,9 @@ constexpr int caveCount = 7;
 constexpr int caveDistance = 40;
 constexpr int maxlightUpdateCount = 500;
 constexpr int minUpdateTimeMillis = 25;
-constexpr int cPlayerMaxHealth = 1000;
+constexpr int cPlayerMaxHealth = 100;
 constexpr float cYFallThreshold = 10;
-constexpr float cYFallDamage = 10;
+constexpr float cYFallDamage = 1;
 constexpr uint8_t cHotbarSize = 5;
 constexpr uint8_t cInventorySize = cHotbarSize*4; 
 constexpr uint8_t cItemStackSize = 10;
@@ -52,8 +52,9 @@ constexpr size_t tileMapWidth = 10, tileMapHeight = 10;
 constexpr SDL_Rect tileRect{0,0,tileSize,tileSize};
 constexpr SDL_FRect tileFRect{0,0,tileSize,tileSize};
 const std::string magic{"JustAGame"};
-constexpr size_t mapSeed = 19254792u;
-//constexpr size_t mapSeed = 1546916105u;
+//constexpr size_t mapSeed = 19254792u;
+constexpr size_t mapSeed = 1546916105u;
+//constexpr size_t mapSeed =   525376247u;/a lot of water
 const siv::BasicPerlinNoise<float> perlin{mapSeed};
 
 /*
@@ -154,6 +155,9 @@ enum class Tool :uint8_t{
 };
 enum class Biome :uint8_t{
 	PLAINS,FOREST,DESERT,MOUNTAINS
+};
+enum class Sound :uint8_t{
+	BLOCK_BREAK,BLOCK_PLACE,ITEM_PICKUP,JUMP,LAND,PLAYER_DAMAGE,INVENTORY_ACTION
 };
 
 bool isSolid(Tile t);

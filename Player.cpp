@@ -293,7 +293,7 @@ void Player::render()const{
 		SDL_SetRenderDrawColor(game.renderer, 0x88, 0, 0, 0xff);
 		SDL_RenderFillCircle(game.renderer, 100, 100, 50);
 		SDL_SetRenderDrawColor(game.renderer, 0xff, 0, 0, 0xff);
-		SDL_RenderFillCircle(game.renderer, 100, 100, health / 20);
+		SDL_RenderFillCircle(game.renderer, 100, 100, health / 2);
 	}
 	if(openInventory){
 		renderInventory();
