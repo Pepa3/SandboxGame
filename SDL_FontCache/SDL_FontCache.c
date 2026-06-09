@@ -5,6 +5,8 @@ by Jonathan Dearborn
 See SDL_FontCache.h for license info.
 */
 
+//Svoboda: Swapped strcat and strcpy for strcat_s and strcpy_s
+
 #include "SDL_FontCache.h"
 
 #include <stdio.h>
@@ -139,7 +141,6 @@ static char* new_concat(const char* a, const char* b)
     char* new_string = (char*)malloc(size+1);
 
     // Concatenate strings in the new buffer
-    //Fixed error from strcpy and strcat
     strcpy_s(new_string, size+1, a);
     strcat_s(new_string, size+1, b);
 
